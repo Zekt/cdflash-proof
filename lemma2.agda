@@ -4,11 +4,12 @@ import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl)
 open Eq.≡-Reasoning
 open import Data.Nat using (ℕ; zero; suc)
-open import Data.Product using (_×_) renaming (_,_ to ⟨_,_⟩)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Relation.Nullary using (¬_)
 open import Relation.Nullary.Negation using ()
   renaming (contradiction to ¬¬-intro)
+open import Function using (_∘_)
 
 data Action : Set where
   w : Action
@@ -19,8 +20,8 @@ data Action : Set where
   rc : Action
 
 data Snormal : Set where
-  write : Snormal → w → Snormal
-  flush : Snormal → f → Snormal
+  write : Snormal → Action → Snormal
+  flush : Snormal → Action → Snormal
   s0 : Snormal
 
 data Scrash : Set where
@@ -41,18 +42,33 @@ data Sfinal : Set where
 -- data Stable : Set where
 --   stable : Stable
 --   modified : Stable → Stable
-data SubState : Set where
-  volatile : SubState
-  stable : SubState
-  modified : SubState → SubState
+
+data Fragment : Set where
+  s0 : Fragment
+  _∙_ : Fragment → Action → Fragment
 
 data State : Set where
-  x : SubState → SubState → State -- Volatile → Stable
+  volatile : State
+  stable : State
+  modified : State → State
 
-⟦_⟧p : Action → State → State
-⟦ w ⟧p (x v s) = x (modified v) s
-⟦ f ⟧p (x v s) = x v v
-⟦ r ⟧p (x v s) = x s s
-⟦ wc ⟧p (x v s) = x (modified v) s
-⟦ fc ⟧p (x v s) = x (modified v) s
-⟦ rc ⟧p (x v s) = x (modified v) s
+-- data State : Set where
+--   x : SubState → SubState → State -- Volatile → Stable
+
+-- lem : {s : State} → P s → P (exec w s)
+
+⟦_⟧p : Action → State × State → State × State
+⟦ w ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stable ⟩
+⟦ f ⟧p ⟨ vlt , stb ⟩ = ⟨ vlt , vlt ⟩
+⟦ r ⟧p ⟨ vlt , stb ⟩ = ⟨ stb , stb ⟩
+⟦ wc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
+⟦ fc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
+⟦ rc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
+
+runFragment : Fragment → State × State
+runFragment s0 = ⟨ volatile , stable ⟩
+runFragment (fg ∙ ac) = ⟦ ac ⟧p (runFragment fg)
+
+data SR : Fragment → Fragment → Set where -- Stable Reservation
+  eq : {f₁ f₂ : Fragment} → proj₂ (runFragment f₁) ≡ proj₂ (runFragment f₂) → SR f₁ f₂
+
