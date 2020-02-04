@@ -22,29 +22,6 @@ data Action : Set where
   rc : Action
   _✭ : Action → Action
 
-data Snormal : Set where
-  write : Snormal → Action → Snormal
-  flush : Snormal → Action → Snormal
-  s0 : Snormal
-
-data Scrash : Set where
-  wc : Snormal → Scrash
-  fc : Snormal → Scrash
-
-data Sr : Set where
-  rc : Sr → Sr
-  rcq : Scrash → Sr
-
-data Sfinal : Set where
-  r : Sr → Sfinal
-
--- data Volatile : Set where
---   volatile : Volatile
---   modified : Volatile → Volatile
---
--- data Stable : Set where
---   stable : Stable
---   modified : Stable → Stable
 
 data Fragment : Set where
   s0 : Fragment
@@ -54,11 +31,6 @@ data State : Set where
   vtl0 : State
   stb0 : State
   modified : State → State
-
--- data State : Set where
---   x : SubState → SubState → State -- Volatile → Stable
-
--- lem : {s : State} → P s → P (exec w s)
 
 ⟦_⟧p : Action → State × State → State × State
 ⟦ w ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
@@ -77,5 +49,4 @@ data SR : Fragment → Fragment → Set where -- Stable Reservation
   eq : {f₁ f₂ : Fragment} → proj₂ (runFragment f₁) ≡ proj₂ (runFragment f₂) → SR f₁ f₂
 
 lemma2' : ∀ (f₁ f₂ : Fragment) → f₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ f₂ → SR f₁ f₂
-lemma2' s0 (.(s0 ∙ (w ✭) ∙ wc ∙ (rc ✭)) ∙ .r) refl = eq refl
-lemma2' (f' ∙ x) (.(f' ∙ x ∙ (w ✭) ∙ wc ∙ (rc ✭)) ∙ .r) refl = eq refl
+lemma2' f₁ f₂ refl = eq refl
