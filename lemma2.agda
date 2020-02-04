@@ -11,6 +11,8 @@ open import Relation.Nullary.Negation using ()
   renaming (contradiction to ¬¬-intro)
 open import Function using (_∘_)
 
+infixl 20 _∙_
+
 data Action : Set where
   w : Action
   f : Action
@@ -18,6 +20,7 @@ data Action : Set where
   wc : Action
   fc : Action
   rc : Action
+  _✭ : Action → Action
 
 data Snormal : Set where
   write : Snormal → Action → Snormal
@@ -38,7 +41,7 @@ data Sfinal : Set where
 -- data Volatile : Set where
 --   volatile : Volatile
 --   modified : Volatile → Volatile
--- 
+--
 -- data Stable : Set where
 --   stable : Stable
 --   modified : Stable → Stable
@@ -48,8 +51,8 @@ data Fragment : Set where
   _∙_ : Fragment → Action → Fragment
 
 data State : Set where
-  volatile : State
-  stable : State
+  vtl0 : State
+  stb0 : State
   modified : State → State
 
 -- data State : Set where
@@ -58,17 +61,21 @@ data State : Set where
 -- lem : {s : State} → P s → P (exec w s)
 
 ⟦_⟧p : Action → State × State → State × State
-⟦ w ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stable ⟩
+⟦ w ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
 ⟦ f ⟧p ⟨ vlt , stb ⟩ = ⟨ vlt , vlt ⟩
 ⟦ r ⟧p ⟨ vlt , stb ⟩ = ⟨ stb , stb ⟩
 ⟦ wc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
 ⟦ fc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
 ⟦ rc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
+⟦ x ✭ ⟧p = ⟦ x ⟧p
 
 runFragment : Fragment → State × State
-runFragment s0 = ⟨ volatile , stable ⟩
+runFragment s0 = ⟨ vtl0 , stb0 ⟩
 runFragment (fg ∙ ac) = ⟦ ac ⟧p (runFragment fg)
 
 data SR : Fragment → Fragment → Set where -- Stable Reservation
   eq : {f₁ f₂ : Fragment} → proj₂ (runFragment f₁) ≡ proj₂ (runFragment f₂) → SR f₁ f₂
 
+lemma2' : ∀ (f₁ f₂ : Fragment) → f₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ f₂ → SR f₁ f₂
+lemma2' s0 (.(s0 ∙ (w ✭) ∙ wc ∙ (rc ✭)) ∙ .r) refl = eq refl
+lemma2' (f' ∙ x) (.(f' ∙ x ∙ (w ✭) ∙ wc ∙ (rc ✭)) ∙ .r) refl = eq refl
