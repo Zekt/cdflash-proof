@@ -43,13 +43,13 @@ data State : Set where
 
 runFragment : Fragment → State × State
 runFragment s0 = ⟨ vtl0 , stb0 ⟩
-runFragment (fg ∙ ac) = ⟦ ac ⟧p (runFragment fg)
+runFragment (ef ∙ ac) = ⟦ ac ⟧p (runFragment ef)
 
 data SR : Fragment → Fragment → Set where -- Stable Reservation
-  eq : {f₁ f₂ : Fragment} → proj₂ (runFragment f₁) ≡ proj₂ (runFragment f₂) → SR f₁ f₂
+  eq : {ef₁ ef₂ : Fragment} → proj₂ (runFragment ef₁) ≡ proj₂ (runFragment ef₂) → SR ef₁ ef₂
 
 data VR : Fragment → Fragment → Set where -- Volatile Reservation
-  eq : {f₁ f₂ : Fragment} → proj₁ (runFragment f₁) ≡ proj₁ (runFragment f₂) → VR f₁ f₂
+  eq : {ef₁ ef₂ : Fragment} → proj₁ (runFragment ef₁) ≡ proj₁ (runFragment ef₂) → VR ef₁ ef₂
 
 lem-r : ∀ (ef : Fragment) → proj₁ ( runFragment (ef ∙ r) ) ≡ proj₂ ( runFragment (ef ∙ r) )
 lem-r ef = refl
@@ -57,25 +57,29 @@ lem-r ef = refl
 lem-f : ∀ (ef : Fragment) → proj₁ ( runFragment (ef ∙ f) ) ≡ proj₂ ( runFragment (ef ∙ f) )
 lem-f ef = refl
 
-lem : ∀ (f' : Fragment) → proj₁ (runFragment (f' ∙ r)) ≡ proj₂ (runFragment f')
-lem f' = begin
-           proj₁ ( runFragment (f' ∙ r) )
-         ≡⟨ lem-r f' ⟩
-           proj₂ (runFragment f')
-         ∎
+--lem : ∀ (ef : Fragment) → proj₁ (runFragment (ef ∙ r)) ≡ proj₂ (runFragment ef)
+--lem f' = begin
+--           proj₁ ( runFragment (ef ∙ r) )
+--         ≡⟨ lem-r ef ⟩
+--           proj₂ (runFragment ef)
+--         ∎
 
-lemma2-w' : ∀ (f₁ f₂ : Fragment) → f₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ≡ f₂ → SR f₁ f₂
-lemma2-w' f₁ f₂ refl = eq refl
+lemma2-w1 : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ≡ ef₂ → SR ef₁ ef₂
+lemma2-w1 ef₁ ef₂ refl = eq refl
 
 
--- lemma2-w : ∀ (f₁ f₂ : Fragment) → SR (f₁ ∙ f) f₂ → VR (f₁ ∙ f) (f₂ ∙ r)
--- lemma2-w f₁ f₂ (eq x) = eq (
---                       begin
---                         proj₁ (runFragment (f₁ ∙ f))
---                       ≡⟨ lem-f f₁ ⟩
---                         proj₂ (runFragment (f₁ ∙ f))
---                       ≡⟨⟩
---                         proj₂ (runFragment f₂)
---                       ≡⟨⟩
---                       ∎
---                       )
+lemma2-w2 : ∀ (ef₁ ef₂ : Fragment) → SR (ef₁ ∙ f) ef₂ → VR (ef₁ ∙ f) (ef₂ ∙ r)
+lemma2-w2 ef₁ ef₂ (eq x) = eq (
+                      begin
+                        proj₁ (runFragment (ef₁ ∙ f))
+                      ≡⟨ lem-f ef₁ ⟩
+                        proj₂ (runFragment (ef₁ ∙ f))
+                      ≡⟨ x ⟩
+                        proj₂ (runFragment ef₂)
+                      ≡⟨⟩
+                        proj₁ (runFragment (ef₂ ∙ r))
+                      ∎
+                      )
+
+lemma2-w : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ ef₂ → VR (ef₁ ∙ f) ef₂
+lemma2-w ef₁ ef₂ (eq x) = lemma2-w2 (ef₁ ∙ f) (ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭))
