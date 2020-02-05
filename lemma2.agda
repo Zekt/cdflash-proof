@@ -82,4 +82,5 @@ lemma2-w2 ef₁ ef₂ (eq x) = eq (
                       )
 
 lemma2-w : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ ef₂ → VR (ef₁ ∙ f) ef₂
-lemma2-w ef₁ ef₂ (eq x) = lemma2-w2 (ef₁ ∙ f) (ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭))
+lemma2-w ef₁ ef₂ refl = let ef₂-r = (ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭)) in
+                          lemma2-w2 ef₁ ef₂-r (lemma2-w1 (ef₁ ∙ f) ef₂-r refl)
