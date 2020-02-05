@@ -1,8 +1,8 @@
 module lemma2 where
 
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl)
-open Eq.≡-Reasoning
+open Eq using (_≡_; refl; cong)
+open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
@@ -48,5 +48,34 @@ runFragment (fg ∙ ac) = ⟦ ac ⟧p (runFragment fg)
 data SR : Fragment → Fragment → Set where -- Stable Reservation
   eq : {f₁ f₂ : Fragment} → proj₂ (runFragment f₁) ≡ proj₂ (runFragment f₂) → SR f₁ f₂
 
-lemma2' : ∀ (f₁ f₂ : Fragment) → f₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ f₂ → SR f₁ f₂
-lemma2' f₁ f₂ refl = eq refl
+data VR : Fragment → Fragment → Set where -- Volatile Reservation
+  eq : {f₁ f₂ : Fragment} → proj₁ (runFragment f₁) ≡ proj₁ (runFragment f₂) → VR f₁ f₂
+
+lem-r : ∀ (ef : Fragment) → proj₁ ( runFragment (ef ∙ r) ) ≡ proj₂ ( runFragment (ef ∙ r) )
+lem-r ef = refl
+
+lem-f : ∀ (ef : Fragment) → proj₁ ( runFragment (ef ∙ f) ) ≡ proj₂ ( runFragment (ef ∙ f) )
+lem-f ef = refl
+
+lem : ∀ (f' : Fragment) → proj₁ (runFragment (f' ∙ r)) ≡ proj₂ (runFragment f')
+lem f' = begin
+           proj₁ ( runFragment (f' ∙ r) )
+         ≡⟨ lem-r f' ⟩
+           proj₂ (runFragment f')
+         ∎
+
+lemma2-w' : ∀ (f₁ f₂ : Fragment) → f₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ≡ f₂ → SR f₁ f₂
+lemma2-w' f₁ f₂ refl = eq refl
+
+
+-- lemma2-w : ∀ (f₁ f₂ : Fragment) → SR (f₁ ∙ f) f₂ → VR (f₁ ∙ f) (f₂ ∙ r)
+-- lemma2-w f₁ f₂ (eq x) = eq (
+--                       begin
+--                         proj₁ (runFragment (f₁ ∙ f))
+--                       ≡⟨ lem-f f₁ ⟩
+--                         proj₂ (runFragment (f₁ ∙ f))
+--                       ≡⟨⟩
+--                         proj₂ (runFragment f₂)
+--                       ≡⟨⟩
+--                       ∎
+--                       )
