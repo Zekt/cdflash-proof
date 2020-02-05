@@ -6,10 +6,8 @@ open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.List using (List; _∷_; [])
 open import Relation.Nullary using (¬_)
-open import Relation.Nullary.Negation using ()
-  renaming (contradiction to ¬¬-intro)
-open import Function using (_∘_)
 
 infixl 20 _∙_
 
@@ -17,9 +15,9 @@ data Action : Set where
   w : Action
   f : Action
   r : Action
-  wc : Action
-  fc : Action
-  rc : Action
+  w✗ : Action
+  f✗ : Action
+  r✗ : Action
   _✭ : Action → Action
 
 
@@ -30,15 +28,16 @@ data Fragment : Set where
 data State : Set where
   vtl0 : State
   stb0 : State
-  modified : State → State
+  crashed : State → State
 
-⟦_⟧p : Action → State × State → State × State
-⟦ w ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
-⟦ f ⟧p ⟨ vlt , stb ⟩ = ⟨ vlt , vlt ⟩
-⟦ r ⟧p ⟨ vlt , stb ⟩ = ⟨ stb , stb ⟩
-⟦ wc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
-⟦ fc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
-⟦ rc ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
+⟦_⟧p : Action → List (State × State) → List (State × State)
+⟦ _ ⟧p [] = []
+⟦ w ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ crashed vlt , stb ⟩ ∷ ⟦ w ⟧p ss
+⟦ f ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ vlt , vlt ⟩ ∷ ⟦ f ⟧p ss
+⟦ r ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ stb , stb ⟩ ∷ ⟦ r ⟧p ss
+⟦ w✗ ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ crashed vlt , stb ⟩ ∷ ⟦ w✗ ⟧p ss
+⟦ f✗ ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ crashed vlt , stb ⟩ ∷ (⟨ crashed vlt , vlt ⟩ ∷ ⟦ w✗ ⟧p ss)
+⟦ r✗ ⟧p ( ⟨ vlt , stb ⟩ ∷ ss ) = ⟨ crashed vlt , stb ⟩ ∷ ⟦ r✗ ⟧p ss
 ⟦ x ✭ ⟧p = ⟦ x ⟧p
 
 runFragment : Fragment → State × State
@@ -64,12 +63,12 @@ lem-f ef = refl
 --           proj₂ (runFragment ef)
 --         ∎
 
-lemma2-w1 : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ (w ✭) ∙ wc ∙ (rc ✭) ≡ ef₂ → SR ef₁ ef₂
-lemma2-w1 ef₁ ef₂ refl = eq refl
+lemma2-w₁ : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ (w ✭) ∙ w✗ ∙ (r✗ ✭) ≡ ef₂ → SR ef₁ ef₂
+lemma2-w₁ ef₁ ef₂ refl = eq refl
 
 
-lemma2-w2 : ∀ (ef₁ ef₂ : Fragment) → SR (ef₁ ∙ f) ef₂ → VR (ef₁ ∙ f) (ef₂ ∙ r)
-lemma2-w2 ef₁ ef₂ (eq x) = eq (
+lemma2-w₂ : ∀ (ef₁ ef₂ : Fragment) → SR (ef₁ ∙ f) ef₂ → VR (ef₁ ∙ f) (ef₂ ∙ r)
+lemma2-w₂ ef₁ ef₂ (eq x) = eq (
                       begin
                         proj₁ (runFragment (ef₁ ∙ f))
                       ≡⟨ lem-f ef₁ ⟩
@@ -81,6 +80,8 @@ lemma2-w2 ef₁ ef₂ (eq x) = eq (
                       ∎
                       )
 
-lemma2-w : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭) ∙ r ≡ ef₂ → VR (ef₁ ∙ f) ef₂
-lemma2-w ef₁ ef₂ refl = let ef₂-r = (ef₁ ∙ f ∙ (w ✭) ∙ wc ∙ (rc ✭)) in
-                          lemma2-w2 ef₁ ef₂-r (lemma2-w1 (ef₁ ∙ f) ef₂-r refl)
+lemma2-w : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ f ∙ (w ✭) ∙ w✗ ∙ (r✗ ✭) ∙ r ≡ ef₂ → VR (ef₁ ∙ f) ef₂
+lemma2-w ef₁ ef₂ refl = let ef₂-r = (ef₁ ∙ f ∙ (w ✭) ∙ w✗ ∙ (r✗ ✭)) in
+                          lemma2-w₂ ef₁ ef₂-r (lemma2-w₁ (ef₁ ∙ f) ef₂-r refl)
+
+-- lemma2-f : ∀ (ef₁ ef₂ : Fragment) → ef₁ ∙ f ∙ (w ✭) ∙ f✗ ∙ (r✗ ✭) ∙ r ≡ ef₂ → VR (ef₁ ∙ f) ef₂
