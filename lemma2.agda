@@ -6,6 +6,11 @@ open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Relation.Nullary using (¬_; Dec; yes; no)
+open import Relation.Nullary.Negation
+open import Relation.Nullary.Decidable using (⌊_⌋; toWitness; fromWitness)
+open import Data.Unit using (⊤; tt)
+open import Data.Empty using (⊥; ⊥-elim)
 
 infixl 20 _∙_
 infixl 20 _++_
@@ -59,14 +64,17 @@ data VR : Fragment → Fragment → Set where -- Volatile Reservation
   eq : {ef₁ ef₂ : Fragment}
      → proj₁ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₁) ≡ proj₁ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₂)
      → VR ef₁ ef₂
+
+lem-ac : (ac : Action) → ∀ (ef : Fragment)
+      → Dec (proj₁ (runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ ac)) ≡ proj₂ (runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ ac)))
+lem-ac w ef = no λ()
+lem-ac f ef = yes refl
+lem-ac r ef = yes refl
+lem-ac w✗ ef = no λ()
+lem-ac f✗₁ ef = no λ()
+lem-ac f✗₂ ef = no λ()
+lem-ac r✗ ef = no λ()
  
-lem-r : ∀ (ef : Fragment)
-      → proj₁ ( runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ r) ) ≡ proj₂ ( runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ r) )
-lem-r ef = refl
- 
-lem-f : ∀ (ef : Fragment)
-      → proj₁ ( runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ f) ) ≡ proj₂ ( runFragment ⟨ vlt₀ , stb₀ ⟩ (ef ∙ f) )
-lem-f ef = refl
 
 lem-++ : ∀ (ef₁ ef₂ : Fragment)
        → ( ∀ (s : State × State) → proj₂ (runFragment s ef₂) ≡ proj₂ s )
@@ -149,7 +157,7 @@ lemma2-2 ef₁ ef₂ (eq x) = eq (
                          let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
                          begin
                            proj₁ (runFragment s₀ (ef₁ ∙ f))
-                         ≡⟨ lem-f ef₁ ⟩
+                         ≡⟨ toWitness {Q = lem-ac f ef₁} tt ⟩
                            proj₂ (runFragment s₀ (ef₁ ∙ f))
                          ≡⟨ x ⟩
                            proj₁ (runFragment s₀ (ef₂ ∙ r))
