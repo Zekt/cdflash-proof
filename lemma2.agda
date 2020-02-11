@@ -23,7 +23,6 @@ data Action : Set where
   f✗₁ :          Action
   f✗₂ :          Action
   r✗  :          Action
---_✭  : Action → Action
 
 
 data Fragment : Set where
@@ -46,7 +45,6 @@ data State : Set where
 ⟦ f✗₁ ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
 ⟦ f✗₂ ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , vlt ⟩
 ⟦ r✗  ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
--- ⟦ x ✭ ⟧p               = ⟦ x ⟧p -- TODO changed to _^_
 
 runFragment : State × State → Fragment → State × State
 runFragment s (§ ac)       = ⟦ ac ⟧p s
@@ -76,9 +74,6 @@ lem-++ : ∀ (ef₁ ef₂ : Fragment)
        → ∀ (t : State × State) → proj₂ (runFragment t (ef₁ ++ ef₂)) ≡ proj₂ (runFragment t ef₁)
 lem-++ ef₁ ef₂ lem t = begin
                          proj₂ (runFragment t (ef₁ ++ ef₂))
-                       ≡⟨⟩
-                       -- s ≡ t → (runFragment _ ef₂) s = (runFragment _ ef₂) t
-                         proj₂ (runFragment (runFragment t ef₁) ef₂)
                        ≡⟨ lem (runFragment t ef₁) ⟩
                          proj₂ (runFragment t ef₁)
                        ∎
@@ -100,10 +95,6 @@ s^n=s {.w✗} (cw✗ x) (suc n) s = s^n=s (cw✗ x) n s
 s^n=s {.f✗₁} (cf✗₁ x) (suc n) s = s^n=s (cf✗₁ x) n s
 s^n=s {.r✗} (cr✗ x) (suc n) s = s^n=s (cr✗ x) n s
 
--- lem-w✭-1 : ∀ (n : ℕ) → ∀ (s : State × State) → proj₂ (runFragment s (w ^ n)) ≡ proj₂ s
--- lem-w✭-1 zero s = refl
--- lem-w✭-1 (suc n) s = lem-w✭-1 n s
-
 lem-sr : ∀ {ac : Action} → Du ac → ∀ (ef : Fragment) → ∀ (n : ℕ)
         → ∀ (s : State × State) → proj₂ ( runFragment s (ef ++ (ac ^ n)) ) ≡ proj₂ ( runFragment s ef )
 lem-sr {ac} du ef n s = begin
@@ -112,19 +103,11 @@ lem-sr {ac} du ef n s = begin
                     proj₂ ( runFragment s ef )
                   ∎
 
--- lem-w✭ : ∀ (ef : Fragment) → ∀ (n : ℕ)
---        → ∀ (s : State × State) → proj₂ ( runFragment s (ef ++ (w ^ n)) ) ≡ proj₂ ( runFragment s ef )
--- lem-w✭ ef n s = begin
---                  proj₂ ( runFragment s (ef ++ (w ^ n)) )
---                ≡⟨ lem-++ ef (w ^ n) (lem-w✭-1 n) s ⟩
---                  proj₂ ( runFragment s ef )
---                ∎
--- 
-lemma2-1-w✗ : ∀ {ac : Action} → Du ac 
+lemma2-1 : ∀ {ac : Action} → Du ac 
             → ∀ (ef₁ ef₂ : Fragment)
             → ∀ (m n : ℕ) → ef₁ ++ (w ^ m) ∙ ac ++ (r✗ ^ n) ≡ ef₂
             → SR ef₁ ef₂
-lemma2-1-w✗ {ac} du ef₁ ef₂ m n refl = eq ( sym
+lemma2-1 {ac} du ef₁ ef₂ m n refl = eq ( sym
        let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
        begin 
          proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ ac ++ (r✗ ^ n)) )
@@ -137,20 +120,6 @@ lemma2-1-w✗ {ac} du ef₁ ef₂ m n refl = eq ( sym
        ∎
     )
 
--- lemma2-1-f✗₁ : ∀ (ef₁ ef₂ : Fragment)
---             → ∀ (m n : ℕ) → ef₁ ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n) ≡ ef₂
---             → SR ef₁ ef₂
--- lemma2-1-f✗₁ ef₁ ef₂ m n refl = eq ( sym
---         let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
---         begin 
---           proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n)) )
---         ≡⟨ lem-r✗✭ (ef₁ ++ (w ^ m) ∙ w✗) n s₀ ⟩
---           proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ f✗₁) )
---         ≡⟨ lem-w✭ ef₁ m s₀ ⟩
---           proj₂ (runFragment s₀ ef₁)
---         ∎
---      )
--- 
 lemma2-1-f✗₂ : ∀ (ef₁ ef₂ : Fragment)
              → ∀ (m n : ℕ) → ef₁ ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n) ≡ ef₂
              → SR (ef₁ ++ (w ^ m) ∙ f✗₂) ef₂
@@ -162,7 +131,7 @@ lemma2-1-f✗₂ ef₁ ef₂ m n refl = eq ( sym
           proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ f✗₂) )
         ∎
      )
--- 
+
 lemma2-2 : ∀ (ef₁ ef₂ : Fragment) → SR (ef₁ ∙ f) ef₂ → VR (ef₁ ∙ f) (ef₂ ∙ r)
 lemma2-2 ef₁ ef₂ (eq x) = eq (
                          let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
@@ -189,13 +158,13 @@ lemma2-w✗ : ∀ (ef₁ ef₂ : Fragment) → ∀ (m n : ℕ)
           → ef₁ ∙ f ++ (w ^ m) ∙ w✗ ++ (r✗ ^ n) ∙ r ≡ ef₂
           → VR (ef₁ ∙ f) ef₂
 lemma2-w✗ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ++ (w ^ m) ∙ w✗ ++ (r✗ ^ n))
-                              in lemma2-2 ef₁ ef₂-r (lemma2-1-w✗ (cw✗ refl) (ef₁ ∙ f) ef₂-r m n refl)
+                              in lemma2-2 ef₁ ef₂-r (lemma2-1 (cw✗ refl) (ef₁ ∙ f) ef₂-r m n refl)
 
 lemma2-f✗₁ : ∀ (ef₁ ef₂ : Fragment) → ∀ (m n : ℕ)
            → ef₁ ∙ f ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n) ∙ r ≡ ef₂
            → VR (ef₁ ∙ f) ef₂
 lemma2-f✗₁ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n))
-                               in lemma2-2 ef₁ ef₂-r (lemma2-1-w✗ (cf✗₁ refl) (ef₁ ∙ f) ef₂-r m n refl)
+                               in lemma2-2 ef₁ ef₂-r (lemma2-1 (cf✗₁ refl) (ef₁ ∙ f) ef₂-r m n refl)
 
 lemma2-f✗₂ : ∀ (ef₁ ef₂ : Fragment) → ∀ (m n : ℕ)
            → ef₁ ∙ f ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n) ∙ r ≡ ef₂
