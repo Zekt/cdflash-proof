@@ -29,13 +29,17 @@ data Fragment : Set where
   §_   : Action   →            Fragment
   _∙_  : Fragment → Action   → Fragment
   _++_ : Fragment → Fragment → Fragment
-  _^_  : Action → ℕ → Fragment
+  _^_  : Action   → ℕ        → Fragment
 
 data State : Set where
   vlt₀     :                 State
   stb₀     :                 State
   modified : State →         State -- TODO maybe not accurate
   _[_↦_]   : State → ℕ → ℕ → State -- ??
+
+data _⟦_⟧▸_ : State × State → Action → State × State → Set where
+   _w▸_ : (a b : State × State) → proj₂ a ≡ proj₂ b → a ⟦ w ⟧▸ b
+   _f▸_ : (a b : State × State) → ⟨ proj₁ a ≡ proj₁ b , proj₁ a ≡ proj₂ b ⟩ → a ⟦ f ⟧▸ b
 
 ⟦_⟧p : Action → State × State → State × State
 ⟦ w   ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
@@ -52,6 +56,10 @@ runFragment s (ef ∙ ac)    = ⟦ ac ⟧p (runFragment s ef)
 runFragment s (ef₁ ++ ef₂) = runFragment (runFragment s ef₁) ef₂
 runFragment s (ac ^ zero)  = s
 runFragment s (ac ^ suc n) = ⟦ ac ⟧p (runFragment s (ac ^ n))
+
+data SR' : Fragment → Fragment → Set where
+  eq : {ef₁ ef₂ : Fragment}
+     → 
 
 data SR : Fragment → Fragment → Set where -- Stable Reservation
   eq : {ef₁ ef₂ : Fragment}
