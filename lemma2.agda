@@ -11,14 +11,18 @@ open import Data.Vec
 infixl 20 _∙_
 infixl 20 _⊙_
 
+data All {A : Set} (P : A → Set) : {n : ℕ} → Vec A n → Set where
+  []  : All P []
+  _∷_ : ∀ {x : A} {n : ℕ} {xs : Vec A n} → P x → All P xs → All P (x ∷ xs)
+
 data Action : Set where
-  w   :          Action
-  f   :          Action
-  r   :          Action
-  w✗  :          Action
-  f✗₁ :          Action
-  f✗₂ :          Action
-  r✗  :          Action
+  w   : Action
+  f   : Action
+  r   : Action
+  w✗  : Action
+  f✗₁ : Action
+  f✗₂ : Action
+  r✗  : Action
 
 data Ft : Set where
   prog : Ft
@@ -191,35 +195,44 @@ lemma2-f✗₂ ef₁ ef₂ m n refl = let ef₁-new = ef₁ ∙ f ⊙ (w ^ m)
 
 ------
 
+data Du✓ : Action → Set where -- disjoint union of success functions
+  cw : {ac : Action} → ac ≡ w → Du✓ w
+  cf : {ac : Action} → ac ≡ f → Du✓ f
+  cr : {ac : Action} → ac ≡ r → Du✓ r
+
+data Du✗ : Action → Set where -- disjoint union of crash functions
+  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗ w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗ f✗₁
+  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗ f✗₂
+  cr✗  : {ac : Action} → ac ≡ r✗  → Du✗ r✗
+
 data RI : Fragment prog → Set
 data CI : Fragment prog → Set
 data AR : Fragment prog → Fragment spec → Set
 data CR : Fragment prog → Fragment spec → Set
 
 data RI where
-  ri+w : {ef : Fragment prog} → RI ef → RI (ef ∙ w)
-  ri+f : {ef : Fragment prog} → RI ef → RI (ef ∙ f)
-  ci+r : {ef : Fragment prog} → CI ef → RI (ef ∙ r)
+  ri→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → RI (ef ∙ ac)
+  ci→ : {ef : Fragment prog} → CI ef → RI (ef ∙ r)
+  id→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → ∀ {n : ℕ} → RI (ef ⊙ (ac ^ n))
+  v→  : {n : ℕ} → (v : Vec Action n) → All (λ{x → (x ≡ w ⊎ x ≡ f)}) v → RI ⟦ v ⟧v
 
 data CI where
-  ri+w✗  : {ef : Fragment prog} → RI ef → CI (ef ∙ w✗)
-  ri+f✗₁ : {ef : Fragment prog} → RI ef → CI (ef ∙ f✗₁)
-  ci+f✗₁ : {ef : Fragment prog} → CI ef → CI (ef ∙ f✗₁)
-  ri+f✗₂ : {ef : Fragment prog} → RI ef → CI (ef ∙ f✗₂)
-  ci+f✗₂ : {ef : Fragment prog} → CI ef → CI (ef ∙ f✗₂)
+  ri→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → RI ef → CI (ef ∙ ac)
+  ci→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → CI ef → CI (ef ∙ ac)
+  id→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → (n : ℕ) → CI ef → CI (ef ⊙ (ac ^ n))
 
 -- Abstract Relation of efp(Fragmant of Prog) and efs(Fragment of Spec)
 data AR where
-  ar+w : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → AR (efp ∙ w) (efs ∙ w)
-  ar+f : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → AR (efp ∙ f) (efs ∙ f)
-  cr+r : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → AR (efp ∙ r) (efs ∙ r)
+  ar→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f)
+      → {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → AR (efp ∙ ac) (efs ∙ ac)
+  cr→ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → AR (efp ∙ r) (efs ∙ r)
 
 -- Crash Relation
 data CR where
-  ar+w✗  : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → CR (efp ∙ w✗) (efs ∙ w✗)
-  ar+f✗₁ : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → CR (efp ∙ f✗₁) (efs ∙ f✗₁)
-  ar+f✗₂ : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → CR (efp ∙ f✗₂) (efs ∙ f✗₂)
-  cr+r✗  : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → CR (efp ∙ r✗) (efs ∙ r✗)
+  ar→  : ∀ {ac : Action} → Du✗ ac
+      → {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → CR (efp ∙ ac) (efs ∙ ac)
+  cr→ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → CR (efp ∙ r✗) (efs ∙ r✗)
 
 -- Observational Equivalence
 data OE : Fragment prog → Fragment spec → Set where
@@ -229,13 +242,30 @@ data OE : Fragment prog → Fragment spec → Set where
 -- Simulation Relation
 -- SR : Fragment → Fragment → Set where
 
-data All {A : Set} (P : A → Set) : {n : ℕ} → Vec A n → Set where
-  []  : All P []
-  _∷_ : ∀ {x : A} {n : ℕ} {xs : Vec A n} → P x → All P xs → All P (x ∷ xs)
+-- data _==_ : Fragment t → Fragment t → Set
+  
+-- ext : (efp : Fragment prog)
+--     → {ef : Fragment prog} {ac : Action} {n : ℕ} → efp ≡ ef ⊙ (ac ^ n)
+--     → Fragment prog
+-- ext (efp ⊙ (ac ^ zero)) refl = efp
+-- ext (efp ⊙ (ac ^ (suc n))) refl = efp ⊙ (ac ^ n) ∙ ac
 
-lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du ac → ∀ (i j k : ℕ)
+_>>_ : {a b : Fragment prog} → (CI a → RI b) → CI a → RI b
+g >> x = g x
+
+infixr 20 _>>_
+
+lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
         → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
         → efp ≡ (⟦ v ⟧v) ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
         → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) )
+lemma-1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl , ⟨
+                                        ci→
+                                     >> id→ (cr✗ refl) k
+                                     >> ri→ du
+                                     >> id→ (inj₁ refl) 
+                                     >> ri→ (inj₂ refl)
+                                     >> v→ v all , {! !}
+                                                             ⟩ ⟩ ⟩
 
 -- theorem : ∀ (efp ef : Fragment) → (efp ≡ ef ∙ f) → OE efp ef
