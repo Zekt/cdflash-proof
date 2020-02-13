@@ -9,10 +9,10 @@ open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Relation.Nullary.Negation
 open import Data.Unit using (⊤; tt)
 open import Data.Empty using (⊥; ⊥-elim)
-open import Function.Inverse using (_↔_)
+open import Data.Vec
 
 infixl 20 _∙_
-infixl 20 _++_
+infixl 20 _⊞_
 
 data Action : Set where
   w   :          Action
@@ -28,25 +28,22 @@ data Ft : Set where
   spec : Ft
 
 data Fragment (t : Ft) : Set where
-  §_   : Action     →              Fragment t
-  _∙_  : Fragment t → Action     → Fragment t
-  _++_ : Fragment t → Fragment t → Fragment t
-  _^_  : Action     → ℕ          → Fragment t
+  §_   : Action     →                Fragment t
+  _∙_  : Fragment t → Action       → Fragment t
+  _⊞_  : Fragment t → Fragment t   → Fragment t
+  _^_  : Action     → ℕ            → Fragment t
+  ⟦_⟧v : {n : ℕ}    → Vec Action n → Fragment t
 
-data Fragment' : Set where
-  §_   : Action     →             Fragment'
-  _∙_  : Fragment' → Action     → Fragment'
-  _++_ : Fragment' → Fragment'  → Fragment'
-  _^_  : Action     → ℕ         → Fragment'
-
-red : {t : Ft} → Fragment t → Fragment'
+red : {s t : Ft} → Fragment s → Fragment t
 red (§ x) = § x
 red (ff ∙ x) = red ff ∙ x
-red (ff ++ ff₁) = red ff ++ red ff₁
+red (ff ⊞ ff₁) = red ff ⊞ red ff₁
 red (x ^ n) = x ^ n
+red ⟦ [] ⟧v = ⟦ [] ⟧v
+red ⟦ x ∷ xs ⟧v = {! red x ∷ red ⟦ xs ⟧v  !}
 
 data _<=>_ (a : Fragment prog) (b : Fragment spec) : Set where
-  redeq : red a ≡ red b → a <=> b
+  redeq : red a ≡ b → a <=> b
 
 data State : Set where
   vlt₀     :                 State
@@ -70,7 +67,7 @@ data State : Set where
 runFragment : State × State → Fragment spec → State × State
 runFragment s (§ ac)       = ⟦ ac ⟧p s
 runFragment s (ef ∙ ac)    = ⟦ ac ⟧p (runFragment s ef)
-runFragment s (ef₁ ++ ef₂) = runFragment (runFragment s ef₁) ef₂
+runFragment s (ef₁ ⊞ ef₂) = runFragment (runFragment s ef₁) ef₂
 runFragment s (ac ^ zero)  = s
 runFragment s (ac ^ suc n) = ⟦ ac ⟧p (runFragment s (ac ^ n))
 
@@ -90,11 +87,11 @@ v=s f (inj₁ x) ef = refl
 v=s r (inj₂ y) ef = refl
 
 
-lem-++ : ∀ (ef₁ ef₂ : Fragment spec)
+lem-⊞ : ∀ (ef₁ ef₂ : Fragment spec)
        → ( ∀ (s : State × State) → proj₂ (runFragment s ef₂) ≡ proj₂ s )
-       → ∀ (t : State × State) → proj₂ (runFragment t (ef₁ ++ ef₂)) ≡ proj₂ (runFragment t ef₁)
-lem-++ ef₁ ef₂ lem t = begin
-                         proj₂ (runFragment t (ef₁ ++ ef₂))
+       → ∀ (t : State × State) → proj₂ (runFragment t (ef₁ ⊞ ef₂)) ≡ proj₂ (runFragment t ef₁)
+lem-⊞ ef₁ ef₂ lem t = begin
+                         proj₂ (runFragment t (ef₁ ⊞ ef₂))
                        ≡⟨ lem (runFragment t ef₁) ⟩
                          proj₂ (runFragment t ef₁)
                        ∎
@@ -117,39 +114,39 @@ s^n=s {.f✗₁} (cf✗₁ x) (suc n) s = s^n=s (cf✗₁ x) n s
 s^n=s {.r✗}  (cr✗ x)  (suc n) s = s^n=s (cr✗ x)  n s
 
 lem-sr : ∀ {ac : Action} → Du ac → ∀ (ef : Fragment spec) → ∀ (n : ℕ)
-        → ∀ (s : State × State) → proj₂ ( runFragment s (ef ++ (ac ^ n)) ) ≡ proj₂ ( runFragment s ef )
+        → ∀ (s : State × State) → proj₂ ( runFragment s (ef ⊞ (ac ^ n)) ) ≡ proj₂ ( runFragment s ef )
 lem-sr {ac} du ef n s = begin
-                    proj₂ ( runFragment s (ef ++ (ac ^ n)) )
-                  ≡⟨ lem-++ ef (ac ^ n) (s^n=s du n) s ⟩
+                    proj₂ ( runFragment s (ef ⊞ (ac ^ n)) )
+                  ≡⟨ lem-⊞ ef (ac ^ n) (s^n=s du n) s ⟩
                     proj₂ ( runFragment s ef )
                   ∎
 
 lemma2-1 : ∀ {ac : Action} → Du ac
             → ∀ (ef₁ ef₂ : Fragment spec)
-            → ∀ (m n : ℕ) → ef₁ ++ (w ^ m) ∙ ac ++ (r✗ ^ n) ≡ ef₂
+            → ∀ (m n : ℕ) → ef₁ ⊞ (w ^ m) ∙ ac ⊞ (r✗ ^ n) ≡ ef₂
             → SR ef₁ ef₂
 lemma2-1 {ac} du ef₁ ef₂ m n refl = eq ( sym
        let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
        begin
-         proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ ac ++ (r✗ ^ n)) )
-       ≡⟨ lem-sr (cr✗ refl)  (ef₁ ++ (w ^ m) ∙ ac) n s₀ ⟩
-         proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ ac) )
-       ≡⟨ lem-sr du (ef₁ ++ (w ^ m)) 1 s₀ ⟩
-         proj₂ (runFragment s₀ (ef₁ ++ (w ^ m)))
+         proj₂ ( runFragment s₀ (ef₁ ⊞ (w ^ m) ∙ ac ⊞ (r✗ ^ n)) )
+       ≡⟨ lem-sr (cr✗ refl)  (ef₁ ⊞ (w ^ m) ∙ ac) n s₀ ⟩
+         proj₂ ( runFragment s₀ (ef₁ ⊞ (w ^ m) ∙ ac) )
+       ≡⟨ lem-sr du (ef₁ ⊞ (w ^ m)) 1 s₀ ⟩
+         proj₂ (runFragment s₀ (ef₁ ⊞ (w ^ m)))
        ≡⟨ lem-sr (cw refl) ef₁ m s₀ ⟩
          proj₂ (runFragment s₀ ef₁)
        ∎
     )
 
 lemma2-1-f✗₂ : ∀ (ef₁ ef₂ : Fragment spec)
-             → ∀ (m n : ℕ) → ef₁ ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n) ≡ ef₂
-             → SR (ef₁ ++ (w ^ m) ∙ f✗₂) ef₂
+             → ∀ (m n : ℕ) → ef₁ ⊞ (w ^ m) ∙ f✗₂ ⊞ (r✗ ^ n) ≡ ef₂
+             → SR (ef₁ ⊞ (w ^ m) ∙ f✗₂) ef₂
 lemma2-1-f✗₂ ef₁ ef₂ m n refl = eq ( sym
         let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
         begin
-          proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n)) )
-        ≡⟨ lem-sr (cr✗ refl) (ef₁ ++ (w ^ m) ∙ f✗₂) n s₀ ⟩
-          proj₂ ( runFragment s₀ (ef₁ ++ (w ^ m) ∙ f✗₂) )
+          proj₂ ( runFragment s₀ (ef₁ ⊞ (w ^ m) ∙ f✗₂ ⊞ (r✗ ^ n)) )
+        ≡⟨ lem-sr (cr✗ refl) (ef₁ ⊞ (w ^ m) ∙ f✗₂) n s₀ ⟩
+          proj₂ ( runFragment s₀ (ef₁ ⊞ (w ^ m) ∙ f✗₂) )
         ∎
         )
 
@@ -176,22 +173,22 @@ lemma2-2-f✗₂ ef₁ ef₂ (eq x) = eq (
                             )
 
 lemma2-w✗ : ∀ (ef₁ ef₂ : Fragment spec) → ∀ (m n : ℕ)
-          → ef₁ ∙ f ++ (w ^ m) ∙ w✗ ++ (r✗ ^ n) ∙ r ≡ ef₂
+          → ef₁ ∙ f ⊞ (w ^ m) ∙ w✗ ⊞ (r✗ ^ n) ∙ r ≡ ef₂
           → VR (ef₁ ∙ f) ef₂
-lemma2-w✗ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ++ (w ^ m) ∙ w✗ ++ (r✗ ^ n))
+lemma2-w✗ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ⊞ (w ^ m) ∙ w✗ ⊞ (r✗ ^ n))
                              in  lemma2-2 ef₁ ef₂-r (lemma2-1 (cw✗ refl) (ef₁ ∙ f) ef₂-r m n refl)
 
 lemma2-f✗₁ : ∀ (ef₁ ef₂ : Fragment spec) → ∀ (m n : ℕ)
-           → ef₁ ∙ f ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n) ∙ r ≡ ef₂
+           → ef₁ ∙ f ⊞ (w ^ m) ∙ f✗₁ ⊞ (r✗ ^ n) ∙ r ≡ ef₂
            → VR (ef₁ ∙ f) ef₂
-lemma2-f✗₁ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ++ (w ^ m) ∙ f✗₁ ++ (r✗ ^ n))
+lemma2-f✗₁ ef₁ ef₂ m n refl = let ef₂-r = (ef₁ ∙ f ⊞ (w ^ m) ∙ f✗₁ ⊞ (r✗ ^ n))
                               in  lemma2-2 ef₁ ef₂-r (lemma2-1 (cf✗₁ refl) (ef₁ ∙ f) ef₂-r m n refl)
 
 lemma2-f✗₂ : ∀ (ef₁ ef₂ : Fragment spec) → ∀ (m n : ℕ)
-           → ef₁ ∙ f ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n) ∙ r ≡ ef₂
-           → VR (ef₁ ∙ f ++ (w ^ m)) ef₂
-lemma2-f✗₂ ef₁ ef₂ m n refl = let ef₁-new = ef₁ ∙ f ++ (w ^ m)
-                                  ef₂-r   = ef₁ ∙ f ++ (w ^ m) ∙ f✗₂ ++ (r✗ ^ n)
+           → ef₁ ∙ f ⊞ (w ^ m) ∙ f✗₂ ⊞ (r✗ ^ n) ∙ r ≡ ef₂
+           → VR (ef₁ ∙ f ⊞ (w ^ m)) ef₂
+lemma2-f✗₂ ef₁ ef₂ m n refl = let ef₁-new = ef₁ ∙ f ⊞ (w ^ m)
+                                  ef₂-r   = ef₁ ∙ f ⊞ (w ^ m) ∙ f✗₂ ⊞ (r✗ ^ n)
                               in  lemma2-2-f✗₂ ef₁-new ef₂-r (lemma2-1-f✗₂ (ef₁ ∙ f) ef₂-r m n refl)
 
 ------
@@ -233,9 +230,14 @@ data OE : Fragment prog → Fragment spec → Set where
 
 -- Simulation Relation
 -- SR : Fragment → Fragment → Set where
---
-lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac₁ ac₂ : Action} → (ac₁ ≡ w ⊎ ac₁ ≡ f) → Du ac₂ → ∀ (j k : ℕ)
-        → ∀ {ef₀ : Fragment prog} → efp ≡ ef₀ ∙ f ++ (w ^ j) ∙ ac₂ ++ (r✗ ^ k) ∙ r
-        → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) )
+
+data All {A : Set} (P : A → Set) : {n : ℕ} → Vec A n → Set where
+  []  : All P []
+  _∷_ : ∀ {x : A} {n : ℕ} {xs : Vec A n} → P x → All P xs → All P (x ∷ xs)
+
+-- lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac₁ ac₂ : Action} → (ac₁ ≡ w ⊎ ac₁ ≡ f) → Du ac₂ → ∀ (i j k : ℕ)
+--         → ∀ (v : Vec Action i)
+--         → efp ≡ (⟦ ⟧v) ∙ f ⊞ (w ^ j) ∙ ac₂ ⊞ (r✗ ^ k) ∙ r
+--         → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) )
 
 -- theorem : ∀ (efp ef : Fragment) → (efp ≡ ef ∙ f) → OE efp ef
