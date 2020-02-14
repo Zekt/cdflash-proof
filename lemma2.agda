@@ -33,14 +33,14 @@ data Ft : Set where
   spec : Ft
 
 data Fragment (t : Ft) : Set where
-  §_   : Action     →                Fragment t
+  §_   : Action                    → Fragment t
   _∙_  : Fragment t → Action       → Fragment t
   _⊙_  : Fragment t → Fragment t   → Fragment t
   _^_  : Action     → ℕ            → Fragment t
   ⟦_⟧v : {n : ℕ}    → Vec Action n → Fragment t
 
 red : {s t : Ft} → Fragment s → Fragment t
-red (§ x)      = § x
+red (§ ac)     = § ac
 red (ff ∙ x)   = red ff ∙ x
 red (ff ⊙ ff₁) = red ff ⊙ red ff₁
 red (x ^ n)    = x ^ n
@@ -69,7 +69,7 @@ data State : Set where
 ⟦ r✗  ⟧p ⟨ vlt , stb ⟩ = ⟨ modified vlt , stb ⟩
 
 runFragment : State × State → Fragment spec → State × State
-runFragment s (§ ac)       = ⟦ ac ⟧p s
+runFragment s (§ ac)       = ⟦ ac ⟧p ⟨ vlt₀ , stb₀ ⟩
 runFragment s (ef ∙ ac)    = ⟦ ac ⟧p (runFragment s ef)
 runFragment s (ef₁ ⊙ ef₂)  = runFragment (runFragment s ef₁) ef₂
 runFragment s (ac ^ zero)  = s
@@ -109,6 +109,16 @@ data Du : Action → Set where -- disjoint union of stable reserving actions
   cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du f✗₁
   cr✗  : {ac : Action} → ac ≡ r✗  → Du r✗
 
+data Du✓ : Action → Set where -- disjoint union of success functions
+  cw : {ac : Action} → ac ≡ w → Du✓ w
+  cf : {ac : Action} → ac ≡ f → Du✓ f
+  cr : {ac : Action} → ac ≡ r → Du✓ r
+
+data Du✗ : Action → Set where -- disjoint union of crash functions
+  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗ w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗ f✗₁
+  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗ f✗₂
+  cr✗  : {ac : Action} → ac ≡ r✗  → Du✗ r✗
 
 s^n=s : ∀ {ac : Action} → Du ac
       → ∀ (n : ℕ) → ∀ (s : State × State) → proj₂ (runFragment s (ac ^ n)) ≡ proj₂ s
@@ -197,18 +207,15 @@ lemma2-f✗₂ ef₁ ef₂ m n refl = let ef₁-new = ef₁ ∙ f ⊙ (w ^ m)
                                   ef₂-r   = ef₁ ∙ f ⊙ (w ^ m) ∙ f✗₂ ⊙ (r✗ ^ n)
                               in  lemma2-2-f✗₂ ef₁-new ef₂-r (lemma2-1-f✗₂ (ef₁ ∙ f) ef₂-r m n refl)
 
+-- lemma2 : ∀ (ef₁ ef₂ : Fragment spec) → ∀ {ac : Action} → Du✗ ac → ∀ (m n : ℕ)
+--        → ef₁ ∙ f ⊙ (w ^ m) ∙ ac ⊙ (r✗ ^ n) ∙ r ≡ ef₂
+--        → VR (ef₁ ∙ f) ef₂
+-- lemma2 ef₁ ef₂ (cw✗ x) m n refl = lemma2-w✗ ef₁ ef₂ m n refl
+-- lemma2 ef₁ ef₂ (cf✗₁ x) m n refl = lemma2-f✗₁ ef₁ ef₂ m n refl
+-- lemma2 ef₁ ef₂ (cf✗₂ x) m n refl = lemma2-f✗₂ ef₁ ef₂ m n refl
+-- lemma2 ef₁ ef₂ (cr✗ x) m n refl = {!   !}
+
 ------
-
-data Du✓ : Action → Set where -- disjoint union of success functions
-  cw : {ac : Action} → ac ≡ w → Du✓ w
-  cf : {ac : Action} → ac ≡ f → Du✓ f
-  cr : {ac : Action} → ac ≡ r → Du✓ r
-
-data Du✗ : Action → Set where -- disjoint union of crash functions
-  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗ w✗
-  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗ f✗₁
-  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗ f✗₂
-  cr✗  : {ac : Action} → ac ≡ r✗  → Du✗ r✗
 
 data RI : Fragment prog → Set
 data CI : Fragment prog → Set
@@ -228,55 +235,85 @@ data CI where
 
 -- Abstract Relation of efp(Fragmant of Prog) and efs(Fragment of Spec)
 data AR where
-  ar→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f)
+  ar✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f)
       → {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → AR (efp ∙ ac) (efs ∙ ac)
-  cr→ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → AR (efp ∙ r) (efs ∙ r)
+  cr✓ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → AR (efp ∙ r) (efs ∙ r)
+  id✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {efp : Fragment prog} → {efs : Fragment spec}
+      → (n : ℕ) → RI efp → AR efp efs → AR (efp ⊙ (ac ^ n)) (efs ⊙ (ac ^ n))
+  v✓  : {n : ℕ} → (v : Vec Action n) → All (λ{x → (x ≡ w ⊎ x ≡ f)}) v → AR ⟦ v ⟧v ⟦ v ⟧v
 
 -- Crash Relation
 data CR where
-  ar→  : ∀ {ac : Action} → Du✗ ac
+  ar✗  : ∀ {ac : Action} → Du✗ ac
       → {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → CR (efp ∙ ac) (efs ∙ ac)
-  cr→ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → CR (efp ∙ r✗) (efs ∙ r✗)
+  cr✗ : {efp : Fragment prog} → {efs : Fragment spec} → CI efp → CR efp efs → CR (efp ∙ r✗) (efs ∙ r✗)
+  id✗ : ∀ {ac : Action} → Du✗ ac → {efp : Fragment prog} → {efs : Fragment spec}
+      → (n : ℕ) → CI efp → CR efp efs → CR (efp ⊙ (ac ^ n)) (efs ⊙ (ac ^ n))
 
 -- Observational Equivalence
 data OE : Fragment prog → Fragment spec → Set where
-  conclude : {efp : Fragment prog} → {efs : Fragment spec} → RI efp → AR efp efs → OE efp efs
+  oe : {efp : Fragment prog} → {efs : Fragment spec} → RI efp × AR efp efs → OE efp efs
 -- test : {efp : Fragment prog} → {efs : Fragment spec} → efp <=> efs → OE efp efs
 
 -- Simulation Relation
 -- SR : Fragment → Fragment → Set where
 
 -- data _==_ : Fragment t → Fragment t → Set
-  
+
 -- ext : (efp : Fragment prog)
 --     → {ef : Fragment prog} {ac : Action} {n : ℕ} → efp ≡ ef ⊙ (ac ^ n)
 --     → Fragment prog
 -- ext (efp ⊙ (ac ^ zero)) refl = efp
 -- ext (efp ⊙ (ac ^ (suc n))) refl = efp ⊙ (ac ^ n) ∙ ac
 
-_✓←✗_ : {a b : Fragment prog} → (CI a → RI b) → CI a → RI b
-g ✓←✗ x = g x
+_✓←✗_ : {a b : Fragment prog} {a' b' : Fragment spec}
+      → (CI a → RI b) × (CI a → CR a a' → AR b b') → (CI a × CR a a') → RI b × AR b b'
+⟨ g , h ⟩ ✓←✗ ⟨ x , y ⟩ = ⟨ g x , h x y ⟩
 
-_✗←✗_ : {a b : Fragment prog} → (CI a → CI b) → CI a → CI b
-g ✗←✗ x = g x
+_✗←✗_ : {a b : Fragment prog} {a' b' : Fragment spec}
+      → (CI a → CI b) × (CI a → CR a a' → CR b b') → (CI a × CR a a') → CI b × CR b b'
+⟨ g , h ⟩ ✗←✗ ⟨ x , y ⟩ = ⟨ g x , h x y ⟩
 
-_✗←✓_ : {a b : Fragment prog} → (RI a → CI b) → RI a → CI b
-g ✗←✓ x = g x
+_✗←✓_ : {a b : Fragment prog} {a' b' : Fragment spec}
+      → (RI a → CI b) × (RI a → AR a a' → CR b b') → (RI a × AR a a') → CI b × CR b b'
+⟨ g , h ⟩ ✗←✓ ⟨ x , y ⟩ = ⟨ g x , h x y ⟩
 
-_✓←✓_ : {a b : Fragment prog} → (RI a → RI b) → RI a → RI b
-g ✓←✓ x = g x
+_✓←✓_ : {a b : Fragment prog} {a' b' : Fragment spec}
+      → (RI a → RI b) × (RI a → AR a a' → AR b b') → (RI a × AR a a') → RI b × AR b b'
+⟨ g , h ⟩ ✓←✓ ⟨ x , y ⟩ = ⟨ g x , h x y ⟩
 
-lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
+lemma1 : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
+       → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
+       → efp ≡ (⟦ v ⟧v) ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
+       → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) ) -- efs : Fragment spec
+lemma1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl
+                                             , ⟨ ci✓               , cr✓               ⟩
+                                           ✓←✗ ⟨ id✗ (cr✗ refl) k  , id✗ (cr✗ refl) k  ⟩
+                                           ✗←✗ ⟨ ri✗ du            , ar✗ du            ⟩
+                                           ✗←✓ ⟨ id✓ (inj₁ refl) j , id✓ (inj₁ refl) j ⟩
+                                           ✓←✓ ⟨ ri✓ (inj₂ refl)   , ar✓ (inj₂ refl)   ⟩
+                                           ✓←✓ ⟨ v✓ v all          , v✓ v all          ⟩
+                                             ⟩ ⟩
+
+--???
+data EQ : Fragment prog → Fragment spec → Set where
+  eq : {efp : Fragment prog} → {efs₁ efs₂ : Fragment spec} → VR efs₁ efs₂ → OE efp efs₂ → EQ efp efs₁
+
+theorem : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
         → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
-        → efp ≡ (⟦ v ⟧v) ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
-        → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) )
-lemma-1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl , ⟨ ci✓
-                                                           ✓←✗ id✗ (cr✗ refl) k
-                                                           ✗←✗ ri✗ du
-                                                           ✗←✓ id✓ (inj₁ refl) j
-                                                           ✓←✓ ri✓ (inj₂ refl)
-                                                           ✓←✓ v✓ v all
-                                                             , {! !}
-                                                             ⟩ ⟩ ⟩
-
--- theorem : ∀ (efp ef : Fragment) → (efp ≡ ef ∙ f) → OE efp ef
+        → efp ≡ ⟦ v ⟧v ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
+        → ∃[ efs ] (EQ efp efs)
+-- ⟨ red efp , eq {! lemma2  !} ( oe ( proj₂ ( proj₂ ( lemma-1 efp du i j k v all refl ) ) ) ) ⟩
+theorem efp (cw✗ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f
+                                       , eq (lemma2-w✗ (⟦ v ⟧v) (red efp) j k refl)
+                                            ( oe ( proj₂ ( proj₂ (lemma1 efp (cw✗ x) i j k v all refl) ) ) )
+                                       ⟩
+theorem efp (cf✗₁ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f
+                                        , eq (lemma2-f✗₁ (⟦ v ⟧v) (red efp) j k refl)
+                                             ( oe ( proj₂ ( proj₂ (lemma1 efp (cf✗₁ x) i j k v all refl) ) ) )
+                                        ⟩
+theorem efp (cf✗₂ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f ⊙ (w ^ j)
+                                        , eq (lemma2-f✗₂ (⟦ v ⟧v) (red efp) j k refl)
+                                             ( oe ( proj₂ ( proj₂ (lemma1 efp (cf✗₂ x) i j k v all refl) ) ) )
+                                        ⟩
+theorem efp (cr✗ x) i j k v all refl = {!   !}
