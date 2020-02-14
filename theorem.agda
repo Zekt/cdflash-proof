@@ -7,6 +7,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product using (_×_; proj₁; proj₂; ∃; ∃-syntax) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Vec
+open import Function using (_$_)
 
 infixl 20 _∙_
 infixl 20 _⊙_
@@ -78,6 +79,7 @@ data State : Set where
   modified : State →         State -- TODO maybe not accurate
   _[_↦_]   : State → ℕ → ℕ → State -- ??
 
+-- TODO Is relation better?
 -- data _⟦_⟧▸_ : State × State → Action → State × State → Set where
 --    _w▸_ : (a b : State × State) → proj₂ a ≡ proj₂ b → a ⟦ w ⟧▸ b
 --    _f▸_ : (a b : State × State) → ⟨ proj₁ a ≡ proj₁ b , proj₁ a ≡ proj₂ b ⟩ → a ⟦ f ⟧▸ b
@@ -212,13 +214,12 @@ lemma2-f✗₂ ef₁ ef₂ m n refl = let ef₁-new = ef₁ ∙ f ⊙ (w ^ m)
                                   ef₂-r   = ef₁ ∙ f ⊙ (w ^ m) ∙ f✗₂ ⊙ (r✗ ^ n)
                               in  lemma2-2-f✗₂ ef₁-new ef₂-r (lemma2-1-f✗₂ (ef₁ ∙ f) ef₂-r m n refl)
 
--- lemma2 : ∀ (ef₁ ef₂ : Fragment spec) → ∀ {ac : Action} → Du✗ ac → ∀ (m n : ℕ)
+-- lemma2 : ∀ (ef₁ ef₂ : Fragment spec) → ∀ {ac : Action} → Du✗₂ ac → ∀ (m n : ℕ)
 --        → ef₁ ∙ f ⊙ (w ^ m) ∙ ac ⊙ (r✗ ^ n) ∙ r ≡ ef₂
 --        → VR (ef₁ ∙ f) ef₂
 -- lemma2 ef₁ ef₂ (cw✗ x) m n refl = lemma2-w✗ ef₁ ef₂ m n refl
 -- lemma2 ef₁ ef₂ (cf✗₁ x) m n refl = lemma2-f✗₁ ef₁ ef₂ m n refl
 -- lemma2 ef₁ ef₂ (cf✗₂ x) m n refl = lemma2-f✗₂ ef₁ ef₂ m n refl
--- lemma2 ef₁ ef₂ (cr✗ x) m n refl = {!   !}
 
 ------
 
@@ -258,18 +259,7 @@ data CR where
 -- Observational Equivalence
 data OE : Fragment prog → Fragment spec → Set where
   oe : {efp : Fragment prog} → {efs : Fragment spec} → RI efp × AR efp efs → OE efp efs
--- test : {efp : Fragment prog} → {efs : Fragment spec} → efp <=> efs → OE efp efs
 
--- Simulation Relation
--- SR : Fragment → Fragment → Set where
-
--- data _==_ : Fragment t → Fragment t → Set
-
--- ext : (efp : Fragment prog)
---     → {ef : Fragment prog} {ac : Action} {n : ℕ} → efp ≡ ef ⊙ (ac ^ n)
---     → Fragment prog
--- ext (efp ⊙ (ac ^ zero)) refl = efp
--- ext (efp ⊙ (ac ^ (suc n))) refl = efp ⊙ (ac ^ n) ∙ ac
 
 _✓←✗_ : {a b : Fragment prog} {a' b' : Fragment spec}
       → (CI a → RI b) × (CI a → CR a a' → AR b b') → (CI a × CR a a') → RI b × AR b b'
@@ -300,7 +290,7 @@ lemma1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl
                                            ✓←✓ ⟨ v✓ v all          , v✓ v all          ⟩
                                              ⟩ ⟩
 
---???
+-- TODO Is this ok?
 data EQ : Fragment prog → Fragment spec → Set where
   eq : {efp : Fragment prog} → {efs₁ efs₂ : Fragment spec} → VR efs₁ efs₂ → OE efp efs₂ → EQ efp efs₁
 
@@ -308,16 +298,15 @@ theorem : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗₂ ac → �
         → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
         → efp ≡ ⟦ v ⟧v ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
         → ∃[ efs ] (EQ efp efs)
--- ⟨ red efp , eq {! lemma2  !} ( oe ( proj₂ ( proj₂ ( lemma-1 efp du i j k v all refl ) ) ) ) ⟩
 theorem efp (cw✗ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f
                                        , eq (lemma2-w✗ (⟦ v ⟧v) (red efp) j k refl)
-                                            ( oe ( proj₂ ( proj₂ (lemma1 efp (cw✗ x) i j k v all refl) ) ) )
+                                            (oe $ proj₂ $ proj₂ $ lemma1 efp (cw✗ x) i j k v all refl)
                                        ⟩
 theorem efp (cf✗₁ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f
                                         , eq (lemma2-f✗₁ (⟦ v ⟧v) (red efp) j k refl)
-                                             ( oe ( proj₂ ( proj₂ (lemma1 efp (cf✗₁ x) i j k v all refl) ) ) )
+                                             (oe $ proj₂ $ proj₂ $ lemma1 efp (cf✗₁ x) i j k v all refl)
                                         ⟩
 theorem efp (cf✗₂ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f ⊙ (w ^ j)
                                         , eq (lemma2-f✗₂ (⟦ v ⟧v) (red efp) j k refl)
-                                             ( oe ( proj₂ ( proj₂ (lemma1 efp (cf✗₂ x) i j k v all refl) ) ) )
+                                             (oe $ proj₂ $ proj₂ $ lemma1 efp (cf✗₂ x) i j k v all refl)
                                         ⟩
