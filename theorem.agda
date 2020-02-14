@@ -28,6 +28,29 @@ data Action : Set where
   f✗₂ : Action
   r✗  : Action
 
+data Du : Action → Set where -- disjoint union of stable reserving actions
+  cw   : {ac : Action} → ac ≡ w   → Du w
+  cr   : {ac : Action} → ac ≡ r   → Du r
+  cw✗  : {ac : Action} → ac ≡ w✗  → Du w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du f✗₁
+  cr✗  : {ac : Action} → ac ≡ r✗  → Du r✗
+
+data Du✓ : Action → Set where -- disjoint union of success functions
+  cw : {ac : Action} → ac ≡ w → Du✓ w
+  cf : {ac : Action} → ac ≡ f → Du✓ f
+  cr : {ac : Action} → ac ≡ r → Du✓ r
+
+data Du✗ : Action → Set where -- disjoint union of crash functions
+  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗ w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗ f✗₁
+  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗ f✗₂
+  cr✗  : {ac : Action} → ac ≡ r✗  → Du✗ r✗
+
+data Du✗₂ : Action → Set where -- disjoint union of crash functions we care
+  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗₂ w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗₂ f✗₁
+  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗₂ f✗₂
+
 data Ft : Set where
   prog : Ft
   spec : Ft
@@ -101,24 +124,6 @@ lem-⊙ ef₁ ef₂ lem t = begin
                       ≡⟨ lem (runFragment t ef₁) ⟩
                         proj₂ (runFragment t ef₁)
                       ∎
-
-data Du : Action → Set where -- disjoint union of stable reserving actions
-  cw   : {ac : Action} → ac ≡ w   → Du w
-  cr   : {ac : Action} → ac ≡ r   → Du r
-  cw✗  : {ac : Action} → ac ≡ w✗  → Du w✗
-  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du f✗₁
-  cr✗  : {ac : Action} → ac ≡ r✗  → Du r✗
-
-data Du✓ : Action → Set where -- disjoint union of success functions
-  cw : {ac : Action} → ac ≡ w → Du✓ w
-  cf : {ac : Action} → ac ≡ f → Du✓ f
-  cr : {ac : Action} → ac ≡ r → Du✓ r
-
-data Du✗ : Action → Set where -- disjoint union of crash functions
-  cw✗  : {ac : Action} → ac ≡ w✗  → Du✗ w✗
-  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Du✗ f✗₁
-  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Du✗ f✗₂
-  cr✗  : {ac : Action} → ac ≡ r✗  → Du✗ r✗
 
 s^n=s : ∀ {ac : Action} → Du ac
       → ∀ (n : ℕ) → ∀ (s : State × State) → proj₂ (runFragment s (ac ^ n)) ≡ proj₂ s
@@ -299,7 +304,7 @@ lemma1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl
 data EQ : Fragment prog → Fragment spec → Set where
   eq : {efp : Fragment prog} → {efs₁ efs₂ : Fragment spec} → VR efs₁ efs₂ → OE efp efs₂ → EQ efp efs₁
 
-theorem : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
+theorem : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗₂ ac → ∀ (i j k : ℕ)
         → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
         → efp ≡ ⟦ v ⟧v ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
         → ∃[ efs ] (EQ efp efs)
@@ -316,4 +321,3 @@ theorem efp (cf✗₂ x) i j k v all refl = ⟨ ⟦ v ⟧v ∙ f ⊙ (w ^ j)
                                         , eq (lemma2-f✗₂ (⟦ v ⟧v) (red efp) j k refl)
                                              ( oe ( proj₂ ( proj₂ (lemma1 efp (cf✗₂ x) i j k v all refl) ) ) )
                                         ⟩
-theorem efp (cr✗ x) i j k v all refl = {!   !}
