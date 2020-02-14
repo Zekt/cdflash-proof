@@ -10,6 +10,10 @@ open import Data.Vec
 
 infixl 20 _∙_
 infixl 20 _⊙_
+infixr 20 _✗←✗_
+infixr 20 _✓←✗_
+infixr 20 _✗←✓_
+infixr 20 _✓←✓_
 
 data All {A : Set} (P : A → Set) : {n : ℕ} → Vec A n → Set where
   []  : All P []
@@ -212,15 +216,15 @@ data AR : Fragment prog → Fragment spec → Set
 data CR : Fragment prog → Fragment spec → Set
 
 data RI where
-  ri→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → RI (ef ∙ ac)
-  ci→ : {ef : Fragment prog} → CI ef → RI (ef ∙ r)
-  id→ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → ∀ {n : ℕ} → RI (ef ⊙ (ac ^ n))
-  v→  : {n : ℕ} → (v : Vec Action n) → All (λ{x → (x ≡ w ⊎ x ≡ f)}) v → RI ⟦ v ⟧v
+  ri✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → RI (ef ∙ ac)
+  ci✓ : {ef : Fragment prog} → CI ef → RI (ef ∙ r)
+  id✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → (n : ℕ) → RI ef → RI (ef ⊙ (ac ^ n))
+  v✓  : {n : ℕ} → (v : Vec Action n) → All (λ{x → (x ≡ w ⊎ x ≡ f)}) v → RI ⟦ v ⟧v
 
 data CI where
-  ri→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → RI ef → CI (ef ∙ ac)
-  ci→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → CI ef → CI (ef ∙ ac)
-  id→ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → (n : ℕ) → CI ef → CI (ef ⊙ (ac ^ n))
+  ri✗ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → RI ef → CI (ef ∙ ac)
+  ci✗ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → CI ef → CI (ef ∙ ac)
+  id✗ : ∀ {ac : Action} → Du✗ ac → {ef : Fragment prog} → (n : ℕ) → CI ef → CI (ef ⊙ (ac ^ n))
 
 -- Abstract Relation of efp(Fragmant of Prog) and efs(Fragment of Spec)
 data AR where
@@ -250,22 +254,29 @@ data OE : Fragment prog → Fragment spec → Set where
 -- ext (efp ⊙ (ac ^ zero)) refl = efp
 -- ext (efp ⊙ (ac ^ (suc n))) refl = efp ⊙ (ac ^ n) ∙ ac
 
-_>>_ : {a b : Fragment prog} → (CI a → RI b) → CI a → RI b
-g >> x = g x
+_✓←✗_ : {a b : Fragment prog} → (CI a → RI b) → CI a → RI b
+g ✓←✗ x = g x
 
-infixr 20 _>>_
+_✗←✗_ : {a b : Fragment prog} → (CI a → CI b) → CI a → CI b
+g ✗←✗ x = g x
+
+_✗←✓_ : {a b : Fragment prog} → (RI a → CI b) → RI a → CI b
+g ✗←✓ x = g x
+
+_✓←✓_ : {a b : Fragment prog} → (RI a → RI b) → RI a → RI b
+g ✓←✓ x = g x
 
 lemma-1 : ∀ (efp : Fragment prog) → ∀ {ac : Action} → Du✗ ac → ∀ (i j k : ℕ)
         → ∀ (v : Vec Action i) → All (λ{x → x ≡ w ⊎ x ≡ f}) v
         → efp ≡ (⟦ v ⟧v) ∙ f ⊙ (w ^ j) ∙ ac ⊙ (r✗ ^ k) ∙ r
         → ∃[ efs ] ( efp <=> efs × (RI efp × AR efp efs) )
-lemma-1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl , ⟨
-                                        ci→
-                                     >> id→ (cr✗ refl) k
-                                     >> ri→ du
-                                     >> id→ (inj₁ refl) 
-                                     >> ri→ (inj₂ refl)
-                                     >> v→ v all , {! !}
+lemma-1 efp du i j k v all refl = ⟨ red efp , ⟨ redeq refl , ⟨ ci✓
+                                                           ✓←✗ id✗ (cr✗ refl) k
+                                                           ✗←✗ ri✗ du
+                                                           ✗←✓ id✓ (inj₁ refl) j
+                                                           ✓←✓ ri✓ (inj₂ refl)
+                                                           ✓←✓ v✓ v all
+                                                             , {! !}
                                                              ⟩ ⟩ ⟩
 
 -- theorem : ∀ (efp ef : Fragment) → (efp ≡ ef ∙ f) → OE efp ef
