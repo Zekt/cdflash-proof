@@ -1,4 +1,4 @@
-module lemma2 where
+module theorem where
 
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong; sym)
