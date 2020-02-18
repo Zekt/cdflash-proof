@@ -1,10 +1,12 @@
-module theorem where
+open import Data.Bool
+
+module theorem (Addr : Set) (_=?_ : Addr -> Addr -> Bool) (Data : Set) where
 
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong; sym)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Nat using (ℕ; zero; suc)
-open import Data.Product using (_×_; proj₁; proj₂; ∃; ∃-syntax) renaming (_,_ to ⟨_,_⟩)
+open import Data.Product using (_×_; proj₁; proj₂; ∃; ∃-syntax; uncurry) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Data.Vec
 open import Function using (_$_)
@@ -47,10 +49,10 @@ data Crash : Action → Set where -- disjoint union of crash functions
   cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Crash f✗₂
   cr✗  : {ac : Action} → ac ≡ r✗  → Crash r✗
 
-data Crash₂ : Action → Set where -- disjoint union of crash functions we care
-  cw✗  : {ac : Action} → ac ≡ w✗  → Crash₂ w✗
-  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Crash₂ f✗₁
-  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Crash₂ f✗₂
+data Crash* : Action → Set where -- disjoint union of crash functions we care
+  cw✗  : {ac : Action} → ac ≡ w✗  → Crash* w✗
+  cf✗₁ : {ac : Action} → ac ≡ f✗₁ → Crash* f✗₁
+  cf✗₂ : {ac : Action} → ac ≡ f✗₂ → Crash* f✗₂
 
 data Ft : Set where
   prog : Ft
@@ -73,16 +75,44 @@ red ⟦ xs ⟧v    = ⟦ xs ⟧v
 data _<=>_ (a : Fragment prog) (b : Fragment spec) : Set where
   redeq : red a ≡ b → a <=> b
 
-data State : Set where
-  vlt₀     :                 State
-  stb₀     :                 State
-  mod      : State →         State -- TODO maybe not accurate
-  _[_↦_]   : State → ℕ → ℕ → State -- XXX not really useful
+record State where
+  constructor ⟨_,_⟩
+  field
+    volatile : Addr -> Data
+    stable   : Addr -> Data
+ 
+_[_↦_] : (Addr -> Data) -> Addr -> Data -> (Addr -> Data)
+(s [ addr ↦ dat ]) i with addr =? i
+...                  | true  = dat
+...                  | false = s i
+
+_==_ : (Addr -> Data) -> (Addr -> Data) -> Set
+s == t = ∀ addr -> s addr ≡ t addr
+
+data _==_ : (Addr -> Data) -> (Addr -> Data) -> Set where
+  eq : {s t : Addr -> Data} -> (∀ addr -> s addr ≡ t addr) -> s == t
+
+--data State : Set where
+--  vlt₀     :                 State
+--  stb₀     :                 State
+--  mod      : State →         State -- TODO maybe not accurate
+--  _[_↦_]   : State → ℕ → ℕ → State -- XXX not really useful
 
 -- TODO Is relation better?
--- data _⟦_⟧▸_ : State × State → Action → State × State → Set where
---    _w▸_ : (a b : State × State) → proj₂ a ≡ proj₂ b → a ⟦ w ⟧▸ b
---    _f▸_ : (a b : State × State) → ⟨ proj₁ a ≡ proj₁ b , proj₁ a ≡ proj₂ b ⟩ → a ⟦ f ⟧▸ b
+data _⟦_⟧▸_ : State → Action → State → Set where
+   _w▸_ : (s s' : State) → State.volatile s [ addr ↦ dat ] == State.volatile s' -> State.stable s == State.stable s' → s ⟦ w ⟧▸ s'
+   _f▸_ : (a b : State × State) → ⟨ proj₁ a ≡ proj₁ b , proj₁ a ≡ proj₂ b ⟩ → a ⟦ f ⟧▸ b
+
+data SnocList ...
+
+_⊙_ : SnocList A -> SnocList A -> SnocList A
+xs ⊙ []       = xs
+xs ⊙ (ys ∙ y) = (xs ⊙ ys) ∙ y
+
+data _⟦_⟧*▸_: State -> SnocList Action -> State -> Set where
+   ∅   : s ⟦ [] ⟧*▸ s'
+   _∙_ : s ⟦ acts ⟧*▸ t -> t ⟦ act ⟧▸ u -> s ⟦ acts ∙ act ⟧*▸ u
+
 
 ⟦_⟧p : Action → State × State → State × State
 ⟦ w   ⟧p ⟨ vlt , stb ⟩ = ⟨ mod vlt , stb ⟩
@@ -103,9 +133,10 @@ runFragment s ⟦ [] ⟧v      = s
 runFragment s ⟦ x ∷ xs ⟧v  = runFragment (⟦ x ⟧p s) ⟦ xs ⟧v
 
 data SR : Fragment spec → Fragment spec → Set where -- Stable Reservation
-  sr : {ef₁ ef₂ : Fragment spec}
-     → proj₂ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₁) ≡ proj₂ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₂)
-     → SR ef₁ ef₂
+  sr : (∀ s s₁ s₂ -> s ⟦ frag₁ ⟧*▸ s₁ -> s ⟦ frag₂ ⟧*▸ s₂ -> State.stable s₁ == State.stable s₂) -> SR frag₁ frag₂
+--  sr : {ef₁ ef₂ : Fragment spec}
+--     → proj₂ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₁) ≡ proj₂ (runFragment ⟨ vlt₀ , stb₀ ⟩ ef₂)
+--     → SR ef₁ ef₂
 
 data VR : Fragment spec → Fragment spec → Set where -- Volatile Reservation
   vr : {ef₁ ef₂ : Fragment spec}
@@ -164,6 +195,7 @@ lemma2-1 {ac} du ef₁ ef₂ m n refl = sr ( sym
 
 lemma2-1-f✗₂ : ∀ (ef₁ ef₂ : Fragment spec)
              → ∀ (m n : ℕ) → ef₁ ⊙ (w ^ m) ∙ f✗₂ ⊙ (r✗ ^ n) ≡ ef₂
+             ∀ (ads : SnocList (Addr × Data)) -> ef₁ ⊙ map (uncurry w) ads
              → SR (ef₁ ⊙ (w ^ m) ∙ f✗₂) ef₂
 lemma2-1-f✗₂ ef₁ ef₂ m n refl = sr ( sym
         let s₀ = ⟨ vlt₀ , stb₀ ⟩ in
@@ -229,13 +261,13 @@ data CI : Fragment prog → Set
 data AR : Fragment prog → Fragment spec → Set
 data CR : Fragment prog → Fragment spec → Set
 
-data RI where
+data RI where -- Relation Invariance
   ri✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → RI ef → RI (ef ∙ ac)
   ci✓ : {ef : Fragment prog} → CI ef → RI (ef ∙ r)
   id✓ : ∀ {ac : Action} → (ac ≡ w ⊎ ac ≡ f) → {ef : Fragment prog} → (n : ℕ) → RI ef → RI (ef ⊙ (ac ^ n))
   v✓  : {n : ℕ} → (v : Vec Action n) → All (λ{x → (x ≡ w ⊎ x ≡ f)}) v → RI ⟦ v ⟧v
 
-data CI where
+data CI where -- Crash Invariance
   ri✗ : ∀ {ac : Action} → Crash ac → {ef : Fragment prog} → RI ef → CI (ef ∙ ac)
   ci✗ : ∀ {ac : Action} → Crash ac → {ef : Fragment prog} → CI ef → CI (ef ∙ ac)
   id✗ : ∀ {ac : Action} → Crash ac → {ef : Fragment prog} → (n : ℕ) → CI ef → CI (ef ⊙ (ac ^ n))
