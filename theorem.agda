@@ -13,6 +13,7 @@ open import Function using (_$_)
 
 infixl 20 _∙_
 infixl 20 _⊙_
+infixl 20 _++RTC_
 infixr 100 _[_↦_]
 --infixr 20 _✗←✗_
 --infixr 20 _✓←✗_
@@ -21,12 +22,12 @@ infixr 100 _[_↦_]
 
 
 data Action : Set where
-  w[_↦_] : Addr → Data → Action
-  f      :               Action
-  r      :               Action
-  w✗     :               Action
-  f✗     :               Action
-  r✗     :               Action
+  w[_↦_] : (addr : Addr) (dat : Data) → Action
+  f      :                              Action
+  r      :                              Action
+  w✗     :                              Action
+  f✗     :                              Action
+  r✗     :                              Action
 
 data isSR : Action → Set where -- disjoint union of stable reserving actions
   cw  : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → isSR w[ addr ↦ dat ]
@@ -49,6 +50,17 @@ data Crash* : Action → Set where -- disjoint union of crash functions we care
   cw✗ : {ac : Action} → ac ≡ w✗ → Crash* w✗
   cf✗ : {ac : Action} → ac ≡ f✗ → Crash* f✗
 
+data Write : Action → Set where
+  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → Write w[ addr ↦ dat ]
+
+data NormalSuccess : Action → Set where
+  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → NormalSuccess w[ addr ↦ dat ]
+  cf : {ac : Action} → ac ≡ f → NormalSuccess f
+
+data NormalCrash : Action → Set where
+  cw✗ : {ac : Action} → ac ≡ w✗ → NormalCrash w✗
+  cf✗ : {ac : Action} → ac ≡ f✗ → NormalCrash f✗
+
 --data Fragment (t : Ft) : Set where
 --  §_   : Action                    → Fragment t
 --  _∙_  : Fragment t → Action       → Fragment t
@@ -67,7 +79,7 @@ data Crash* : Action → Set where -- disjoint union of crash functions we care
 --  redeq : red a ≡ b → a <=> b
 
 record State : Set where
-  constructor ⟨_,_⟩
+  constructor <_,_>
   field
     volatile : Addr -> Data
     stable   : Addr -> Data
@@ -84,7 +96,7 @@ sym-== : ∀ {s t : Addr → Data} → s == t → t == s
 sym-== eq = λ{x → sym (eq x)}
 
 tran-== : ∀ {s t u : Addr → Data} → s == t → t == u → s == u
-tran-== e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
+tran-== {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
 
 --data _==_ : (Addr -> Data) -> (Addr -> Data) -> Set where
 --  eq : {s t : Addr -> Data} -> (∀ addr -> s addr ≡ t addr) -> s == t
@@ -96,22 +108,25 @@ tran-== e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
 --  _[_↦_]   : State → ℕ → ℕ → State -- XXX not really useful
 
 -- TODO Is relation better?
-data _⟦_⟧▸_ : State → Action → State → Set where
-  _w[_↦_]▸_ : (s s' : State) (addr : Addr) (dat : Data) → State.volatile s [ addr ↦ dat ] == State.volatile s'
-                                                        → State.stable s == State.stable s'
-                                                        → s ⟦ w[ addr ↦ dat ] ⟧▸ s'
-  _f▸_ : (s s' : State) → State.volatile s == State.volatile s'
-                        → State.volatile s == State.stable s'
-                        → s ⟦ f ⟧▸ s'
-  _r▸_ : (s s' : State) → State.stable s == State.volatile s'
-                        → State.stable s == State.stable s'
-                        → s ⟦ r ⟧▸ s'
-  _w✗▸_ : (s s' : State) → State.stable s == State.stable s'
-                         → s ⟦ w✗ ⟧▸ s'
-  _f✗▸_ : (s s' : State) → State.volatile s == State.stable s' ⊎ State.stable s == State.stable s'
-                         → s ⟦ f✗ ⟧▸ s'
-  _r✗▸_ : (s s' : State) → State.stable s == State.stable s'
-                         → s ⟦ r✗ ⟧▸ s'
+data Step (s s' : State) : Action → Set where
+  w  : (addr : Addr) (dat : Data) → State.volatile s [ addr ↦ dat ] == State.volatile s'
+                                          → State.stable s == State.stable s'
+                                          → Step s s' w[ addr ↦ dat ]
+  f  : State.volatile s == State.volatile s'
+        → State.volatile s == State.stable s'
+        → Step s s' f
+  r  : State.stable s == State.volatile s'
+        → State.stable s == State.stable s'
+        → Step s s' r
+  w✗ : State.stable s == State.stable s'
+        → Step s s' w✗
+  f✗ : State.volatile s == State.stable s' ⊎ State.stable s == State.stable s'
+        → Step s s' f✗
+  r✗ : State.stable s == State.stable s'
+        → Step s s' r✗
+
+_⟦_⟧▸_ : State → Action → State → Set
+s ⟦ ac ⟧▸ s' = Step s s' ac
 
 --data SnocList (A : Set) : Set where
 --  []  : SnocList A
@@ -121,25 +136,46 @@ data Ft : Set where
   prog : Ft
   spec : Ft
 
-data Fragment (t : Ft) : Set where
-  []  : Fragment t
-  _∙_ : Fragment t → Action → Fragment t
+data Fragment : Set where
+  []  : Fragment
+  _∙_ : Fragment → Action → Fragment
 
-data All (P : Action → Set) : {t : Ft} → Fragment t → Set where
+data All (P : Action → Set) : Fragment → Set where
   []  : All P []
-  _∷_ : ∀ {x : Action} {t : Ft} {xs : Fragment t} → All P xs → P x → All P (xs ∙ x)
+  _∷_ : ∀ {x : Action} {xs : Fragment} → All P xs → P x → All P (xs ∙ x)
+
+mapAll : {P Q : Action → Set} {xs : Fragment} → ({x : Action} → P x → Q x) → All P xs → All Q xs
+mapAll pq []        = []
+mapAll pq (all ∷ x) = mapAll pq all ∷ pq x
+
 --_⊙_ : {A : Set} → SnocList A -> SnocList A -> SnocList A
 --xs ⊙ []       = xs
 --xs ⊙ (ys ∙ y) = (xs ⊙ ys) ∙ y
-_⊙_ : {t : Ft} → Fragment t → Fragment t → Fragment t
+_⊙_ : Fragment → Fragment → Fragment
 xs ⊙ []       = xs
 xs ⊙ (ys ∙ y) = (xs ⊙ ys) ∙ y
 
-data _⟦_⟧*▸_ : State → {t : Ft} → Fragment t → State → Set where
-  ∅   : ∀ {s s' : State} → s ⟦ [] ⟧*▸ s'
-  _∙_ : ∀ {s t u : State} {ft : Ft} {acts : Fragment ft} {act : Action}
-      → s ⟦ acts ⟧*▸ t → t ⟦ act ⟧▸ u → s ⟦ acts ∙ act ⟧*▸ u
+--data _⟦_⟧*▸_ : State → Fragment → State → Set where
+--  ∅   : ∀ {s : State} → s ⟦ [] ⟧*▸ s
+--  _∙_ : ∀ {s t u : State} {acts : Fragment} {act : Action}
+--      → s ⟦ acts ⟧*▸ t → t ⟦ act ⟧▸ u → s ⟦ acts ∙ act ⟧*▸ u
 
+data RTC {S : Set} (R : S → Action → S → Set) : S → Fragment → S → Set where
+  ∅   : ∀ {s : S} → RTC R s [] s
+  _∙_ : ∀ {s t u : S} {acs : Fragment} {ac : Action}
+      → RTC R s acs t → R t ac u → RTC R s (acs ∙ ac) u
+
+_⟦_⟧*▸_ = RTC _⟦_⟧▸_
+
+splitRTC : {S : Set} {R : S → Action → S → Set} {s s' : S} (ef₁ ef₂ : Fragment)
+        → RTC R s (ef₁ ⊙ ef₂) s' → ∃[ s'' ] (RTC R s ef₁ s'' × RTC R s'' ef₂ s')
+splitRTC ef₁ []                t = ⟨ _ , ⟨ t , ∅ ⟩ ⟩
+splitRTC ef₁ (ef₂ ∙ ac) (t ∙ rr) = let ⟨ s'' , ⟨ t₁ , t₂ ⟩ ⟩ = splitRTC ef₁ ef₂ t in ⟨ s'' , ⟨ t₁ , t₂ ∙ rr ⟩ ⟩
+
+_++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : Fragment}
+         → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
+tc-s-t ++RTC ∅             = tc-s-t
+tc-s-t ++RTC (tc-t-u ∙ rr) = (tc-s-t ++RTC tc-t-u) ∙ rr
 
 --⟦_⟧p : Action → State × State → State × State
 --⟦ w   ⟧p ⟨ vlt , stb ⟩ = ⟨ mod vlt , stb ⟩
@@ -172,11 +208,11 @@ data _⟦_⟧*▸_ : State → {t : Ft} → Fragment t → State → Set where
 --     → (∀ {s s₁ s₂ : State} → s ⟦ frag₁ ⟧*▸ s₁ → s ⟦ frag₂ ⟧*▸ s₂ → State.volatile s₁ == State.volatile s₂)
 --     → VR frag₁ frag₂
 
-v=s : ∀ (ac : Action) → (ac ≡ f ⊎ ac ≡ r)
-    → ∀ {s s' : State} → s ⟦ ac ⟧▸ s'
-    → State.volatile s' == State.stable s'
-v=s .f (inj₁ refl) ((s f▸ s') x x₁) = λ{x → {! !}}
-v=s .r (inj₂ refl) abc = {!   !}
+--v=s : ∀ (ac : Action) → (ac ≡ f ⊎ ac ≡ r)
+--    → ∀ {s s' : State} → s ⟦ ac ⟧▸ s'
+--    → State.volatile s' == State.stable s'
+--v=s .f (inj₁ refl) ((s f▸ s') x x₁) = λ{x → {! !}}
+--v=s .r (inj₂ refl) abc = {!   !}
 --v=s .f (inj₁ refl) ef = refl
 --v=s .r (inj₂ refl) ef = refl
 
@@ -191,7 +227,7 @@ v=s .r (inj₂ refl) abc = {!   !}
 --                      ∎
 --
 s^n=s : ∀ {ac : Action} → isSR ac
-      → ∀ {frag : Fragment spec} → All (λ{x → x ≡ ac}) frag
+      → ∀ {frag : Fragment} → All (λ{x → x ≡ ac}) frag
       → ∀ (s s' : State) → s ⟦ frag ⟧*▸ s'
       → State.stable s == State.stable s'
 --s^n=s _        zero    s = refl
@@ -210,7 +246,7 @@ s^n=s : ∀ {ac : Action} → isSR ac
 --                  ∎
 --
 lemma2-1 : ∀ {ac : Action} → isSR ac
-         → ∀ (frag-w frag-r✗ : Fragment spec)
+         → ∀ (frag-w frag-r✗ : Fragment)
          → ∀ {addr : Addr} {dat : Data} → All (λ{x → x ≡ w[ addr ↦ dat ]}) frag-w → All (λ{x → x ≡ r✗}) frag-r✗
          → ∀ (s s' : State) → s ⟦ frag-w ∙ ac ⊙ frag-r✗ ⟧*▸ s'
          → State.stable s == State.stable s'
@@ -264,8 +300,8 @@ lemma-2-2 : ∀ (s t t' : State) → State.stable s == State.stable t → t ⟦ 
 --                            )
 lemma-2 : ∀ (ac : Action) → Crash* ac
         → ∀ (s s' : State) → ∀ (frag-w frag-r✗)
-        → ∀ {addr : Addr} {dat : Data} → All (λ{x → x ≡ w[ addr ↦ dat ]}) frag-w → All (λ{x → x ≡ r✗}) frag-r✗
-        → s ⟦ [] ∙ f ⊙ frag-w ∙ ac ⊙ frag-r✗ ∙ r ⟧*▸ s'
+        → All Write frag-w → All (λ{x → x ≡ r✗}) frag-r✗
+        → s ⟦ frag-w ∙ ac ⊙ frag-r✗ ∙ r ⟧*▸ s'
         → State.volatile s == State.volatile s'
 --lemma2-w✗ : ∀ (ef₁ ef₂ : Fragment spec) → ∀ (m n : ℕ)
 --          → ef₁ ∙ f ⊙ (w ^ m) ∙ w✗ ⊙ (r✗ ^ n) ∙ r ≡ ef₂
@@ -293,6 +329,79 @@ lemma-2 : ∀ (ac : Action) → Crash* ac
 ---- lemma2 ef₁ ef₂ (cf✗₁ x) m n refl = lemma2-f✗₁ ef₁ ef₂ m n refl
 ---- lemma2 ef₁ ef₂ (cf✗₂ x) m n refl = lemma2-f✗₂ ef₁ ef₂ m n refl
 --
+
+module CrashDeterminacy
+  (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
+  (Stateᴾ : Set) (_⟦_⟧ᴾ▸_ : Stateᴾ → Action → Stateᴾ → Set)
+  (RI CI : Stateᴾ → Set)
+  (AR CR : Stateᴾ → State → Set)
+  (RIRI : {s s' : Stateᴾ} {ac : Action} → NormalSuccess ac → s ⟦ ac ⟧ᴾ▸ s' → RI s → RI s')
+  (ARAR : {s s' : Stateᴾ} {t t' : State} {ac : Action} → NormalSuccess ac → s ⟦ ac ⟧ᴾ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
+  (RICI : {s s' : Stateᴾ} {ac : Action} → NormalCrash ac → s ⟦ ac ⟧ᴾ▸ s' → RI s → CI s')
+  (ARCR : {s s' : Stateᴾ} {t t' : State} {ac : Action} → NormalCrash ac → s ⟦ ac ⟧ᴾ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
+  (CIRI : {s s' : Stateᴾ} → s ⟦ r ⟧ᴾ▸ s' → CI s → RI s')
+  (CRAR : {s s' : Stateᴾ} {t t' : State} → s ⟦ r ⟧ᴾ▸ s' → t ⟦ r ⟧▸ t' → CI s × CR s t → AR s' t')
+  (CICI : {s s' : Stateᴾ} → s ⟦ r✗ ⟧ᴾ▸ s' → CI s → CI s')
+  (CRCR : {s s' : Stateᴾ} {t t' : State} → s ⟦ r✗ ⟧ᴾ▸ s' → t ⟦ r✗ ⟧▸ t' → CI s × CR s t → CR s' t')
+  (read : Stateᴾ → Addr → Data)
+  (ObsEquiv : {s : Stateᴾ} {t : State} → RI s × AR s t → read s == State.volatile t)
+  (Init : Stateᴾ → Set)
+  (init : (s : Stateᴾ) → Init s → ∃[ t ] (RI s × AR s t))
+  where
+  
+  _⟦_⟧ᴾ*▸_ = RTC _⟦_⟧ᴾ▸_
+  
+--  lemma1 : {ac : Action} → Crash ac
+--         → (ef₁ ef₂ ef₃ : Fragment) → All NormalSuccess ef₁ → All Write ef₂ → All (λ ac → ac ≡ r✗) ef₃
+--         → (s s' : Stateᴾ) (t : State)
+--         → let ef = ef₁ ∙ f ⊙ ef₂ ∙ ac ⊙ ef₃ ∙ r
+--           in  s ⟦ ef ⟧ᴾ*▸ s' → RI s × AR s t → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × RI s' × AR s' t')
+--  lemma1 c ef₁ ef₂ ef₃ all₁ all₂ all₃ s s' t s▸s' ⟨ RI-s , AR-s-t ⟩ = {!!}
+
+  lemma-wf : (ef : Fragment) → All NormalSuccess ef
+           → (s s' : Stateᴾ) (t : State)
+           → s ⟦ ef ⟧ᴾ*▸ s' → RI s × AR s t → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × RI s' × AR s' t')
+  lemma-wf = {!!}
+
+  lemma-r✗ : (ef : Fragment) → All (λ ac → ac ≡ r✗) ef
+           → (s s' : Stateᴾ) (t : State)
+           → s ⟦ ef ⟧ᴾ*▸ s' → CI s × CR s t → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × CI s' × CR s' t')
+  lemma-r✗ = {!!}
+
+  theorem1 : {ac : Action}
+           → (ef₁ ef₂ ef₃ : Fragment) → All NormalSuccess ef₁ → All Write ef₂ → All (λ ac → ac ≡ r✗) ef₃
+           → (s s' : Stateᴾ)
+           → Init s
+           → (s▸s' : s ⟦ (ef₁ ∙ f) ⊙ (ef₂ ⊙ (([] ∙ w✗) ⊙ (ef₃ ∙ r))) ⟧ᴾ*▸ s')
+           → let ⟨ s'' , _ ⟩ = splitRTC (ef₁ ∙ f) (ef₂ ⊙ (([] ∙ w✗) ⊙ (ef₃ ∙ r))) s▸s'
+             in  read s'' == read s'
+  theorem1 ef₁ ef₂ ef₃ all₁ all₂ all₃ s s' init-s s▸s'
+                                      with splitRTC (ef₁ ∙ f) (ef₂ ⊙ (([] ∙ w✗) ⊙ (ef₃ ∙ r))) s▸s'
+  ... | ⟨ s'' , ⟨ s▸s''  , s''▸s' ⟩ ⟩ with splitRTC ef₂ (([] ∙ w✗) ⊙ (ef₃ ∙ r)) s''▸s'
+  ... | ⟨ s₁  , ⟨ s''▸s₁ , s₁▸s'  ⟩ ⟩ with splitRTC ([] ∙ w✗) (ef₃ ∙ r) s₁▸s' 
+  ... | ⟨ s₂  , ⟨ (∅ ∙ s₁▸s₂) , s₂▸s'  ⟩ ⟩ with splitRTC ef₃ ([] ∙ r) s₂▸s'
+  ... | ⟨ s₃  , ⟨ s₂▸s₃  , (∅ ∙ s₃▸s') ⟩ ⟩ with init s init-s 
+  ... | ⟨ t   , RI-s-AR-s-t ⟩ with lemma-wf (ef₁ ∙ f) (all₁ ∷ cf refl) s s'' t s▸s'' RI-s-AR-s-t
+  ... | ⟨ t'' , ⟨ t▸t''  , ⟨ RI-s'' , AR-s''-t'' ⟩ ⟩ ⟩ with lemma-wf ef₂ (mapAll (λ { (cw eq) → cw eq }) all₂) s'' s₁ t'' s''▸s₁ ⟨ RI-s'' , AR-s''-t'' ⟩ 
+  ... | ⟨ t₁  , ⟨ t''▸t₁ , ⟨ RI-s₁  , AR-s₁-t₁   ⟩ ⟩ ⟩ with runSpec t₁ w✗
+  ... | ⟨ t₂  , t₁▸t₂ ⟩ with ARCR (cw✗ refl) s₁▸s₂ t₁▸t₂ ⟨ RI-s₁ , AR-s₁-t₁ ⟩ | RICI (cw✗ refl) s₁▸s₂ RI-s₁
+  ... | CR-s₂-t₂ | CI-s₂ with lemma-r✗ ef₃ all₃ s₂ s₃ t₂ s₂▸s₃ ⟨ CI-s₂ , CR-s₂-t₂ ⟩
+  ... | ⟨ t₃  , ⟨ t₂▸t₃ , ⟨ CI-s₃ , CR-s₃-t₃ ⟩ ⟩ ⟩ with runSpec t₃ r
+  ... | ⟨ t'  , t₃▸t' ⟩ with CRAR s₃▸s' t₃▸t' ⟨ CI-s₃ , CR-s₃-t₃ ⟩ | CIRI s₃▸s' CI-s₃
+  ... | AR-s'-t' | RI-s' =
+    λ addr →
+      begin
+        read s'' addr
+          ≡⟨ ObsEquiv ⟨ RI-s'' , AR-s''-t'' ⟩ addr ⟩
+        State.volatile t'' addr
+          ≡⟨ lemma-2 w✗ (cw✗ refl) t'' t' ef₂ ef₃ all₂ all₃ (t''▸t₁ ++RTC (∅ ∙ t₁▸t₂) ++RTC t₂▸t₃ ++RTC (∅ ∙ t₃▸t')) addr  ⟩
+        State.volatile t' addr
+          ≡⟨ sym (ObsEquiv ⟨ RI-s' , AR-s'-t' ⟩ addr) ⟩
+        read s' addr
+      ∎
+--RI s × AR s t → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × RI s' × AR s' t')
+
+
 --------
 --
 --data RI : Fragment prog → Set
