@@ -18,6 +18,7 @@ open import Function using (_$_)
 infixl 20 _•_
 infixl 20 _⊙_
 infixl 20 _++RTC_
+infixl 20 _>≐>_
 infixr 100 _[_↦_]
 
 data Action : Set where
@@ -28,11 +29,29 @@ data Action : Set where
   fᶜ     :                              Action
   rᶜ     :                              Action
 
-variable
-  ac : Action
+-- Stable Reserving Actions
+data isSR : Action → Set where -- disjoint union of stable reserving actions
+  cw  : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → isSR w[ addr ↦ dat ]
+  cr  : {ac : Action} → ac ≡ r  → isSR r
+  cwᶜ : {ac : Action} → ac ≡ wᶜ → isSR wᶜ
+  crᶜ : {ac : Action} → ac ≡ r → isSR rᶜ
+
+data Success : Action → Set where -- disjoint union of success functions
+  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → Success w[ addr ↦ dat ]
+  cf : {ac : Action} → ac ≡ f → Success f
+  cr : {ac : Action} → ac ≡ r → Success r
+
+data Crash : Action → Set where -- disjoint union of crash functions
+  cwᶜ : {ac : Action} → ac ≡ wᶜ → Crash wᶜ
+  cfᶜ : {ac : Action} → ac ≡ fᶜ → Crash fᶜ
+  crᶜ : {ac : Action} → ac ≡ rᶜ → Crash rᶜ
+
+data Crash* : Action → Set where -- disjoint union of crash functions we care
+  cwᶜ : {ac : Action} → ac ≡ wᶜ → Crash* wᶜ
+  cfᶜ : {ac : Action} → ac ≡ fᶜ → Crash* fᶜ
 
 data Write : Action → Set where
-  w : Write w[ addr ↦ dat ]
+  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → Write w[ addr ↦ dat ]
 
 data NormalSuccess : Action → Set where
   w : NormalSuccess w[ addr ↦ dat ]
@@ -41,6 +60,9 @@ data NormalSuccess : Action → Set where
 data NormalCrash : Action → Set where
   wᶜ : NormalCrash wᶜ
   fᶜ : NormalCrash fᶜ
+
+variable
+  ac : Action
 
 record State : Set where
   constructor <_,_>
@@ -63,8 +85,8 @@ s ≐ t = ∀ (addr : Addr) → s addr ≡ t addr
 sym-≐ : ∀ {s t : Addr → Data} → s ≐ t → t ≐ s
 sym-≐ eq = λ{x → sym (eq x)}
 
-tran-≐ : ∀ {s t u : Addr → Data} → s ≐ t → t ≐ u → s ≐ u
-tran-≐ {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
+_>≐>_ : ∀ {s t u : Addr → Data} → s ≐ t → t ≐ u → s ≐ u
+_>≐>_ {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
 
 data Step (s s' : State) : Action → Set where
   w  : (addr : Addr) (dat : Data) → State.volatile s [ addr ↦ dat ] ≐ State.volatile s'
@@ -125,6 +147,40 @@ _++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : 
 tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
 
+reserve : {ac : Action} → isSR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
+reserve (cw x) (w _ _ _ ss) = ss
+reserve (cr x) (r _ ss) = ss
+reserve (cwᶜ x) (wᶜ ss) = ss
+reserve (crᶜ x) (rᶜ ss) = ss
+
+s^n=s : ∀ {ac : Action} → isSR ac
+      → ∀ {frag : Fragment} → All (λ{x → x ≡ ac}) frag
+      → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
+      → State.stable s ≐ State.stable s'
+s^n=s _ _ ∅ = λ{x → refl}
+s^n=s du (all ∷ refl) (s*▸s'' • s''▸s') = (s^n=s du all s*▸s'') >≐> reserve du s''▸s'
+
+lemma2-1 : ∀ {ac : Action} → isSR ac
+         → ∀ {frag-w frag-rᶜ : Fragment}
+         → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
+         → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
+         → State.stable s ≐ State.stable s'
+lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
+... | s'' , s▸s″ • x , s″x▸s' = s^n=s (cw refl) all₁ s▸s″    >≐>
+                                reserve du x                 >≐>
+                                s^n=s (crᶜ refl) all₂ s″x▸s'
+
+lemma-2-2 : ∀ {s t t' : State} → State.stable s ≐ State.stable t → t ⟦ r ⟧▸ t'
+          → State.stable s ≐ State.volatile t'
+lemma-2-2 s=t (r sv ss) = s=t >≐> sv
+
+lemma-2 : ∀ {ac : Action} → Crash* ac
+        → ∀ {s s' : State} → ∀ {frag-w frag-rᶜ}
+        → All Write frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
+        → s ⟦ [] • f ⊙ frag-w • ac ⊙ frag-rᶜ • r ⟧*▸ s'
+        → State.volatile s ≐ State.volatile s'
+lemma-2 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s*▸s' = {!!}
+
 module CrashDeterminacy
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
   (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
@@ -143,7 +199,7 @@ module CrashDeterminacy
   (Init : RawStateᴾ → Set)
   (init : (s : RawStateᴾ) → Init s → ∃[ t ] (RI s × AR s t))
   where
-  
+
   variable
     rs    : RawStateᴾ
     rs₁   : RawStateᴾ
@@ -215,7 +271,7 @@ module CrashDeterminacy
     let (t'' , t*▸t'' , sim-s''-t'') = runSimSR sim-s-t s*▸s''
         (t'  , t''▸t' , sim-s'-t'  ) = SimSR.next sim-s''-t'' s''▸s'
     in  _ , (t*▸t'' • t''▸t') , sim-s'-t'
-  
+
   main-lemma1 : All NormalSuccess ef₁ → All Write ef₂ → All (λ ac → ac ≡ rᶜ) ef₃ →
                 SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
                 read (proj₁ s') ≐ read (proj₁ s'')
@@ -226,7 +282,7 @@ module CrashDeterminacy
   ...  | t'' , t'*▸t'' , sim-s''-t''
     with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t''
   ...  | ar AR-rs'-t' | ar AR-rs''-t'' = {!!}
-  
+
   initialisation : Init rs → ∃[ rinv ] ∃[ t ] SimSR (rs , normal rinv) t
   initialisation init-rs = let (t , RI-rs , AR-rs-t) = init _ init-rs
                            in  RI-rs , t , simSR _ t (ar AR-rs-t)
