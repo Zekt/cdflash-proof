@@ -197,15 +197,23 @@ tc-s-t ++RTC (tc-t-u ∙ rr) = (tc-s-t ++RTC tc-t-u) ∙ rr
 --                        proj₂ (runFragment t ef₁)
 --                      ∎
 --
+
+reserve : {ac : Action} → SR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s == State.stable s')
+reserve (cw x) (w _ _ _ ss) = ss
+reserve (cr x) (r _ ss) = ss
+reserve (cw✗ x) (w✗ ss) = ss
+reserve (cr✗ x) (r✗ ss) = ss
+
 s^n=s : ∀ {ac : Action} → SR ac
       → ∀ {frag : Fragment} → All (λ{x → x ≡ ac}) frag
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
       → State.stable s == State.stable s'
-s^n=s du all ∅ = λ{x → refl}
-s^n=s (cw ac) (all ∷ x₁) (s▸s' ∙ w _ _ vv ss) =  ( s^n=s (cw refl) all s▸s') >==> ss
-s^n=s (cr ac) (all ∷ x₁) (s▸s' ∙ r sv ss) = ( s^n=s (cr refl) all s▸s') >==> ss
-s^n=s (cw✗ ac) (all ∷ x₁) (s▸s' ∙ w✗ ss) = ( s^n=s (cw✗ refl) all s▸s') >==> ss
-s^n=s (cr✗ ac) (all ∷ x₁) (s▸s' ∙ r✗ ss) = ( s^n=s (cr✗ refl) all s▸s') >==> ss
+s^n=s _ _ ∅ = λ{x → refl}
+s^n=s du (all ∷ refl) (s*▸s'' ∙ s''▸s') = (s^n=s du all s*▸s'') >==> reserve du s''▸s'
+--s^n=s (cw ac) (all ∷ x₁) (s▸s' ∙ w _ _ vv ss) =  ( s^n=s (cw refl) all s▸s') >==> ss
+--s^n=s (cr ac) (all ∷ x₁) (s▸s' ∙ r sv ss) = ( s^n=s (cr refl) all s▸s') >==> ss
+--s^n=s (cw✗ ac) (all ∷ x₁) (s▸s' ∙ w✗ ss) = ( s^n=s (cw✗ refl) all s▸s') >==> ss
+--s^n=s (cr✗ ac) (all ∷ x₁) (s▸s' ∙ r✗ ss) = ( s^n=s (cr✗ refl) all s▸s') >==> ss
 --s^n=s _        zero    s = refl
 --s^n=s (cw x)   (suc n) s = s^n=s (cw x)   n s
 --s^n=s (cr x)   (suc n) s = s^n=s (cr x)   n s
@@ -221,12 +229,6 @@ s^n=s (cr✗ ac) (all ∷ x₁) (s▸s' ∙ r✗ ss) = ( s^n=s (cr✗ refl) all 
 --                    proj₂ ( runFragment s ef )
 --                  ∎
 --
-Ss : {ac : Action} → SR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s == State.stable s')
-Ss (cw x) (w _ _ _ ss) = ss
-Ss (cr x) (r _ ss) = ss
-Ss (cw✗ x) (w✗ ss) = ss
-Ss (cr✗ x) (r✗ ss) = ss
-
 lemma2-1 : ∀ {ac : Action} → SR ac
          → ∀ (frag-w frag-r✗ : Fragment)
          → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ r✗}) frag-r✗
