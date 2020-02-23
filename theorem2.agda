@@ -166,20 +166,21 @@ lemma2-1 : ∀ {ac : Action} → isSR ac
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
-... | s'' , s▸s″ • x , s″x▸s' = s^n=s (cw refl) all₁ s▸s″    >≐>
+... | s″ , s▸s″ • x , s″x▸s' = s^n=s (cw refl) all₁ s▸s″    >≐>
                                 reserve du x                 >≐>
                                 s^n=s (crᶜ refl) all₂ s″x▸s'
 
-lemma-2-2 : ∀ {s t t' : State} → State.stable s ≐ State.stable t → t ⟦ r ⟧▸ t'
-          → State.stable s ≐ State.volatile t'
-lemma-2-2 s=t (r sv ss) = s=t >≐> sv
+lemma-2-2-r : ∀ {s t t' : State} → State.stable s ≐ State.stable t → t ⟦ r ⟧▸ t'
+            → State.stable s ≐ State.volatile t'
+lemma-2-2-r s=t (r sv ss) = s=t >≐> sv
 
 lemma-2 : ∀ {ac : Action} → Crash* ac
         → ∀ {s s' : State} → ∀ {frag-w frag-rᶜ}
         → All Write frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
-        → s ⟦ [] • f ⊙ frag-w • ac ⊙ frag-rᶜ • r ⟧*▸ s'
+        → s ⟦ [] • f ⊙ (frag-w • ac ⊙ frag-rᶜ • r) ⟧*▸ s'
         → State.volatile s ≐ State.volatile s'
-lemma-2 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s*▸s' = {!!}
+lemma-2 {ac} du {s} {s'} {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC ([] • f) (frag-w • ac ⊙ frag-rᶜ • r) s▸s'
+... | s″ , s▸s″ , s″▸s' = {!!}
 
 module CrashDeterminacy
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
