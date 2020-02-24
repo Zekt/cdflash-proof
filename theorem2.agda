@@ -153,12 +153,12 @@ reserve (cr x) (r _ ss) = ss
 reserve (cwᶜ x) (wᶜ ss) = ss
 reserve (crᶜ x) (rᶜ ss) = ss
 
-s^n=s : ∀ {ac : Action} → isSR ac
+idem : ∀ {ac : Action} → isSR ac
       → ∀ {frag : Fragment} → All (λ{x → x ≡ ac}) frag
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
       → State.stable s ≐ State.stable s'
-s^n=s _ _ ∅ = λ{x → refl}
-s^n=s du (all ∷ refl) (s*▸s'' • s''▸s') = (s^n=s du all s*▸s'') >≐> reserve du s''▸s'
+idem _ _ ∅ = λ{x → refl}
+idem du (all ∷ refl) (s*▸s'' • s''▸s') = (idem du all s*▸s'') >≐> reserve du s''▸s'
 
 lemma2-1 : ∀ {ac : Action} → isSR ac
          → ∀ {frag-w frag-rᶜ : Fragment}
@@ -166,21 +166,29 @@ lemma2-1 : ∀ {ac : Action} → isSR ac
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
-... | s″ , s▸s″ • x , s″x▸s' = s^n=s (cw refl) all₁ s▸s″    >≐>
-                                reserve du x                 >≐>
-                                s^n=s (crᶜ refl) all₂ s″x▸s'
+... | s″ , s▸s″ • x , s″x▸s' = idem (cw refl) all₁ s▸s″    >≐>
+                               reserve du x                 >≐>
+                               idem (crᶜ refl) all₂ s″x▸s'
 
-lemma-2-2-r : ∀ {s t t' : State} → State.stable s ≐ State.stable t → t ⟦ r ⟧▸ t'
-            → State.stable s ≐ State.volatile t'
-lemma-2-2-r s=t (r sv ss) = s=t >≐> sv
+lemma-2-w : ∀ {s₀ s : State} → ∀ {frag-w frag-rᶜ}
+          → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
+          → s₀ ⟦ [] • f ⊙ (frag-w • w[ _ ↦ _ ] ⊙ frag-rᶜ) ⊙ ([] • r) ⟧*▸ s
+          → State.volatile s₀ ≐ State.volatile s
+lemma-2-w {s₀} {s} {frag-w} {frag-rᶜ} all₁ all₂ s₀▸s
+      with splitRTC ([] • f) ((frag-w • w[ _ ↦ _ ] ⊙ frag-rᶜ) ⊙ ([] • r)) s₀▸s
+...      | s₁ , ∅ • f vv vs , s₁▸s • r sv ss = vs >≐> lemma2-1 (cw refl) all₁ all₂ s₁▸s >≐> sv
 
-lemma-2 : ∀ {ac : Action} → Crash* ac
-        → ∀ {s s' : State} → ∀ {frag-w frag-rᶜ}
-        → All Write frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
-        → s ⟦ [] • f ⊙ (frag-w • ac ⊙ frag-rᶜ • r) ⟧*▸ s'
-        → State.volatile s ≐ State.volatile s'
-lemma-2 {ac} du {s} {s'} {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC ([] • f) (frag-w • ac ⊙ frag-rᶜ • r) s▸s'
-... | s″ , s▸s″ , s″▸s' = {!!}
+lemma-2-fᶜ : ∀ {s₀ t s : State} → ∀ {frag-w frag-rᶜ}
+           → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
+           → s₀ ⟦ ([] • f) ⊙ frag-w ⟧*▸ t → t ⟦ ([] • fᶜ) ⊙ (frag-rᶜ ⊙ ([] • r)) ⟧*▸ s
+           →  State.volatile t ≐ State.volatile s ⊎ State.volatile s₀ ≐ State.volatile s
+lemma-2-fᶜ {s₀} {t} {s} {frag-w} {frag-rᶜ} all₁ all₂ s₀▸t t▸s
+      with splitRTC ([] • fᶜ) (frag-rᶜ ⊙ ([] • r)) t▸s
+...      | t₁ , ∅ • fᶜ (inj₁ vs) , t₁▸t₂ • r sv ss  = inj₁ (vs >≐> idem (crᶜ refl) all₂ t₁▸t₂ >≐> sv)
+...      | t₁ , ∅ • fᶜ (inj₂ ssᶜ) , t₁▸t₂ • r sv ssʳ
+        with splitRTC ([] • f) frag-w s₀▸t
+...        | s₁ , ∅ • f vv vs , s₁▸t = inj₂ (vs >≐> idem (cw refl) all₁ s₁▸t >≐>
+                                             ssᶜ >≐> idem (crᶜ refl) all₂ t₁▸t₂ >≐> sv)
 
 module CrashDeterminacy
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
@@ -188,9 +196,11 @@ module CrashDeterminacy
   (RI CI : RawStateᴾ → Set)
   (AR CR : RawStateᴾ → State → Set)
   (RIRI : {s s' : RawStateᴾ} {ac : Action} → NormalSuccess ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
-  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → NormalSuccess ac → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
+  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → NormalSuccess ac
+        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
   (RICI : {s s' : RawStateᴾ} {ac : Action} → NormalCrash ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → CI s')
-  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → NormalCrash ac → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
+  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → NormalCrash ac
+        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
   (CIRI : {s s' : RawStateᴾ} → s ⟦ r ⟧ᴿ▸ s' → CI s → RI s')
   (CRAR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ r ⟧ᴿ▸ s' → t ⟦ r ⟧▸ t' → CI s × CR s t → AR s' t')
   (CICI : {s s' : RawStateᴾ} → s ⟦ rᶜ ⟧ᴿ▸ s' → CI s → CI s')
