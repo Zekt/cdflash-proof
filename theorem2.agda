@@ -29,29 +29,32 @@ data Action : Set where
   fᶜ     :                              Action
   rᶜ     :                              Action
 
+variable
+  ac : Action
+
 -- Stable Reserving Actions
 data isSR : Action → Set where -- disjoint union of stable reserving actions
-  cw  : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → isSR w[ addr ↦ dat ]
-  cr  : {ac : Action} → ac ≡ r  → isSR r
-  cwᶜ : {ac : Action} → ac ≡ wᶜ → isSR wᶜ
-  crᶜ : {ac : Action} → ac ≡ r → isSR rᶜ
+  cw  : ac ≡ w[ addr ↦ dat ] → isSR w[ addr ↦ dat ]
+  cr  : ac ≡ r  → isSR r
+  cwᶜ : ac ≡ wᶜ → isSR wᶜ
+  crᶜ : ac ≡ r → isSR rᶜ
 
 data Success : Action → Set where -- disjoint union of success functions
-  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → Success w[ addr ↦ dat ]
-  cf : {ac : Action} → ac ≡ f → Success f
-  cr : {ac : Action} → ac ≡ r → Success r
+  cw : ac ≡ w[ addr ↦ dat ] → Success w[ addr ↦ dat ]
+  cf : ac ≡ f → Success f
+  cr : ac ≡ r → Success r
 
 data Crash : Action → Set where -- disjoint union of crash functions
-  cwᶜ : {ac : Action} → ac ≡ wᶜ → Crash wᶜ
-  cfᶜ : {ac : Action} → ac ≡ fᶜ → Crash fᶜ
-  crᶜ : {ac : Action} → ac ≡ rᶜ → Crash rᶜ
+  cwᶜ : ac ≡ wᶜ → Crash wᶜ
+  cfᶜ : ac ≡ fᶜ → Crash fᶜ
+  crᶜ : ac ≡ rᶜ → Crash rᶜ
 
 data Crash* : Action → Set where -- disjoint union of crash functions we care
-  cwᶜ : {ac : Action} → ac ≡ wᶜ → Crash* wᶜ
-  cfᶜ : {ac : Action} → ac ≡ fᶜ → Crash* fᶜ
+  cwᶜ : ac ≡ wᶜ → Crash* wᶜ
+  cfᶜ : ac ≡ fᶜ → Crash* fᶜ
 
 data Write : Action → Set where
-  cw : {ac : Action} {addr : Addr} {dat : Data} → ac ≡ w[ addr ↦ dat ] → Write w[ addr ↦ dat ]
+  cw : ac ≡ w[ addr ↦ dat ] → Write w[ addr ↦ dat ]
 
 data NormalSuccess : Action → Set where
   w : NormalSuccess w[ addr ↦ dat ]
@@ -60,16 +63,12 @@ data NormalSuccess : Action → Set where
 data NormalCrash : Action → Set where
   wᶜ : NormalCrash wᶜ
   fᶜ : NormalCrash fᶜ
-
-variable
-  ac : Action
-
 record State : Set where
   constructor <_,_>
   field
     volatile : Addr → Data
     stable   : Addr → Data
- 
+
 variable
   t  : State
   t' : State
@@ -167,28 +166,30 @@ lemma2-1 : ∀ {ac : Action} → isSR ac
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
 ... | s″ , s▸s″ • x , s″x▸s' = idem (cw refl) all₁ s▸s″    >≐>
-                               reserve du x                 >≐>
+                               reserve du x                >≐>
                                idem (crᶜ refl) all₂ s″x▸s'
 
-lemma-2-w : ∀ {s₀ s : State} → ∀ {frag-w frag-rᶜ}
-          → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
-          → s₀ ⟦ [] • f ⊙ (frag-w • w[ _ ↦ _ ] ⊙ frag-rᶜ) ⊙ ([] • r) ⟧*▸ s
-          → State.volatile s₀ ≐ State.volatile s
-lemma-2-w {s₀} {s} {frag-w} {frag-rᶜ} all₁ all₂ s₀▸s
-      with splitRTC ([] • f) ((frag-w • w[ _ ↦ _ ] ⊙ frag-rᶜ) ⊙ ([] • r)) s₀▸s
-...      | s₁ , ∅ • f vv vs , s₁▸s • r sv ss = vs >≐> lemma2-1 (cw refl) all₁ all₂ s₁▸s >≐> sv
+lemma2-2-f : ∀ {s s' : State} → s ⟦ f ⟧▸ s' → State.volatile s' ≐ State.stable s'
+lemma2-2-f (f vv vs) = sym-≐ vv >≐> vs
 
-lemma-2-fᶜ : ∀ {s₀ t s : State} → ∀ {frag-w frag-rᶜ}
+lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {frag-w frag-rᶜ}
            → All (λ{x → x ≡ w[ _ ↦ _ ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
-           → s₀ ⟦ ([] • f) ⊙ frag-w ⟧*▸ t → t ⟦ ([] • fᶜ) ⊙ (frag-rᶜ ⊙ ([] • r)) ⟧*▸ s
-           →  State.volatile t ≐ State.volatile s ⊎ State.volatile s₀ ≐ State.volatile s
-lemma-2-fᶜ {s₀} {t} {s} {frag-w} {frag-rᶜ} all₁ all₂ s₀▸t t▸s
-      with splitRTC ([] • fᶜ) (frag-rᶜ ⊙ ([] • r)) t▸s
-...      | t₁ , ∅ • fᶜ (inj₁ vs) , t₁▸t₂ • r sv ss  = inj₁ (vs >≐> idem (crᶜ refl) all₂ t₁▸t₂ >≐> sv)
-...      | t₁ , ∅ • fᶜ (inj₂ ssᶜ) , t₁▸t₂ • r sv ssʳ
-        with splitRTC ([] • f) frag-w s₀▸t
-...        | s₁ , ∅ • f vv vs , s₁▸t = inj₂ (vs >≐> idem (cw refl) all₁ s₁▸t >≐>
-                                             ssᶜ >≐> idem (crᶜ refl) all₂ t₁▸t₂ >≐> sv)
+           → s₀ ⟦ f ⟧▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ ⊙ ([] • r) ⟧*▸ s
+           → State.volatile s' ≐ State.volatile s
+lemma-2-wᶜ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸s'                   >≐>
+                                              lemma2-1 (cwᶜ refl) all₁ all₂ s'▸s >≐>
+                                              sv
+
+lemma-2-fᶜ : ∀ (s₀ s₁ s₂ s : State) → ∀ {frag-w frag-rᶜ}
+           → All (λ{x → x ≡ w[ addr ↦ dat ]}) frag-w → All (λ{x → x ≡ rᶜ}) frag-rᶜ
+           → s₀ ⟦ f ⟧▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ (frag-rᶜ ⊙ ([] • r)) ⟧*▸ s
+           → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
+lemma-2-fᶜ {_} {_} _ _ _ _ {frag-w} {frag-rᶜ} all₁ all₂ (f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
+      with splitRTC ([] • fᶜ) frag-rᶜ s₂▸s
+...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ (vsᶜ >≐> idem (crᶜ refl) all₂ s₂'▸s >≐> sv)
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ (lemma2-2-f (f vv vs)        >≐>
+                                                   idem (cw refl)  all₁ s₁▸s₂  >≐>
+                                                   ssᶜ >≐> idem (crᶜ refl) all₂ s₂'▸s >≐> sv)
 
 module CrashDeterminacy
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
@@ -286,13 +287,15 @@ module CrashDeterminacy
   main-lemma1 : All NormalSuccess ef₁ → All Write ef₂ → All (λ ac → ac ≡ rᶜ) ef₃ →
                 SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
                 read (proj₁ s') ≐ read (proj₁ s'')
-  main-lemma1 _ all₂ all₃ sim-s-t (s*▸ • f ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
-    with runSimSR sim-s-t (s*▸ • f ▸rs')
+  main-lemma1 _ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+    with runSimSR sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
   ...  | t'  , t*▸t'   , sim-s'-t'
     with runSimSR sim-s'-t' (s'*▸ • r {rinv' = rinv''} ▸rs'')
   ...  | t'' , t'*▸t'' , sim-s''-t''
     with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t''
-  ...  | ar AR-rs'-t' | ar AR-rs''-t'' = {!!}
+  ...  | ar AR-rs'-t'         | ar AR-rs''-t'' = ObsEquiv (rinv' , AR-rs'-t') >≐>
+                                                 {!!} >≐>
+                                                 sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
 
   initialisation : Init rs → ∃[ rinv ] ∃[ t ] SimSR (rs , normal rinv) t
   initialisation init-rs = let (t , RI-rs , AR-rs-t) = init _ init-rs
