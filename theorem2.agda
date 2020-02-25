@@ -124,6 +124,9 @@ data All (P : Action → Set) : Fragment → Set where
   []  : All P []
   _∷_ : ∀ {x : Action} {xs : Fragment} → All P xs → P x → All P (xs • x)
 
+fromAll : {P : Action → Set} → All P (ef • ac) → P ac
+fromAll (all ∷ x) = x
+
 mapAll : {P Q : Action → Set} {xs : Fragment} → ({x : Action} → P x → Q x) → All P xs → All Q xs
 mapAll pq []        = []
 mapAll pq (all ∷ x) = mapAll pq all ∷ pq x
@@ -337,8 +340,12 @@ module CrashDeterminacy
   theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs₁ • f▸rs') (rs'▸rs'₂ • r▸rs'')
       with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₂
   ...    | rs'₁ , rs'▸rs'₀ • wᶜ▸rs'₁ , rs'₁▸rs'₂ =
-             main-lemma1 all₁ all₂ all₃
-                         (proj₂ $ proj₂ $ initialisation i)
-                         (proj₂ (lift-wf all₁ rs*▸rs₁) • f f▸rs')
-                         ((proj₂ (lift-w  all₂ rs'▸rs'₀)  • wᶜ wᶜ▸rs'₁) ++RTC
-                          (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₂) • r  r▸rs'' ))
+             let init-ri , init-t , init-ef = initialisation i
+                 wf-ri   , wf-ef            = lift-wf all₁ rs*▸rs₁
+                 w-ri    , w-ef             = lift-w  {rinv = {!!}} all₂ rs'▸rs'₀
+                 rᶜ-ci   , rᶜ-ef            = lift-rᶜ {cinv = {!!}} all₃ rs'₁▸rs'₂
+             in  main-lemma1 all₁ all₂ all₃
+                             init-ef
+                             (wf-ef • f {rinv = wf-ri} {rinv' = RIRI {!!} f▸rs' wf-ri} f▸rs')
+                             ((proj₂ (lift-w  all₂ rs'▸rs'₀)  • wᶜ {rinv = w-ri} {{!!}} wᶜ▸rs'₁) ++RTC
+                              (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₂) • r  {cinv = rᶜ-ci} {{!!}} r▸rs'' ))
