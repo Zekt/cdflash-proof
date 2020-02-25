@@ -320,7 +320,25 @@ module CrashDeterminacy
     let (rinv'' , s*▸s'') = lift-wf all rs*▸rs''
     in  RIRI f rs''▸rs' rinv'' , s*▸s'' • f rs''▸rs'
 
-  theorem1 : All NormalSuccess ef₁ → All Write ef₂ → All (λ ac → ac ≡ rᶜ) ef₃ →
+  lift-w : All Write ef → rs ⟦ ef ⟧ᴿ*▸ rs' →
+           ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-w all rs*▸rs' = lift-wf (mapAll (λ{cw → w}) all) rs*▸rs'
+
+  lift-rᶜ : All RecoveryCrash ef → rs ⟦ ef ⟧ᴿ*▸ rs' →
+            ∃[ cinv' ] ((rs , crash cinv) ⟦ ef ⟧ᴾ*▸ (rs' , crash cinv'))
+  lift-rᶜ all ∅ = _ , ∅
+  lift-rᶜ (all ∷ crᶜ) (rs*▸rs'' • rs''▸rs') =
+    let (cinv'' , s*▸s'') = lift-rᶜ all rs*▸rs''
+    in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
+
+  theorem1 : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
-  theorem1 = {!!}
+  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs₁ • f▸rs') (rs'▸rs'₂ • r▸rs'')
+      with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₂
+  ...    | rs'₁ , rs'▸rs'₀ • wᶜ▸rs'₁ , rs'₁▸rs'₂ =
+             main-lemma1 all₁ all₂ all₃
+                         (proj₂ $ proj₂ $ initialisation i)
+                         (proj₂ (lift-wf all₁ rs*▸rs₁) • f f▸rs')
+                         ((proj₂ (lift-w  all₂ rs'▸rs'₀)  • wᶜ wᶜ▸rs'₁) ++RTC
+                          (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₂) • r  r▸rs'' ))
