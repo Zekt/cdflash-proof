@@ -269,71 +269,66 @@ module CrashDeterminacy
       curr : SR s t
       next : ∀ {s'} → s ⟦ ac ⟧ᴾ▸ s' → ∃[ t' ] (t ⟦ ac ⟧▸ t' × SimSR s' t')
 
-  simSR : (s : Stateᴾ) (t : State) → SR s t → SimSR s t
-  SimSR.curr (simSR s t SR-s-t) = SR-s-t
-  SimSR.next (simSR (rs , normal rinv) t (ar AR-rs-t)) (w {addr = addr} {dat = dat} rs▸rs') =
+  simSR : SR s t → s ⟦ ac ⟧ᴾ▸ s' → ∃[ t' ] (t ⟦ ac ⟧▸ t' × SR s' t')
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (w {addr = addr} {dat = dat} rs▸rs') =
     let (t' , t▸t') = runSpec t w[ addr ↦ dat ]
-    in   t' , t▸t' , simSR _ t' (ar (ARAR w rs▸rs' t▸t' (rinv , AR-rs-t)))
-  SimSR.next (simSR (rs , normal rinv) t (ar AR-rs-t)) (f rs▸rs') =
+    in   t' , t▸t' , ar (ARAR w rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (f rs▸rs') =
     let (t' , t▸t') = runSpec t f
-    in   t' , t▸t' , simSR _ t' (ar (ARAR f rs▸rs' t▸t' (rinv , AR-rs-t)))
-  SimSR.next (simSR (rs , normal rinv) t (ar AR-rs-t)) (wᶜ rs▸rs') =
+    in   t' , t▸t' , ar (ARAR f rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (wᶜ rs▸rs') =
     let (t' , t▸t') = runSpec t wᶜ
-    in   t' , t▸t' , simSR _ t' (cr (ARCR wᶜ rs▸rs' t▸t' (rinv , AR-rs-t)))
-  SimSR.next (simSR (rs , normal rinv) t (ar AR-rs-t)) (fᶜ rs▸rs') =
+    in   t' , t▸t' , cr (ARCR wᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (fᶜ rs▸rs') =
     let (t' , t▸t') = runSpec t fᶜ
-    in   t' , t▸t' , simSR _ t' (cr (ARCR fᶜ rs▸rs' t▸t' (rinv , AR-rs-t)))
-  SimSR.next (simSR (rs , crash cinv) t (cr CR-rs-t)) (rᶜ rs▸rs') =
+    in   t' , t▸t' , cr (ARCR fᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , crash cinv} {t} (cr CR-rs-t) (rᶜ rs▸rs') =
     let (t' , t▸t') = runSpec t rᶜ
-    in   t' , t▸t' , simSR _ t' (cr (CRCR rs▸rs' t▸t' (cinv , CR-rs-t)))
-  SimSR.next (simSR (rs , crash cinv) t (cr CR-rs-t)) (r rs▸rs') =
+    in   t' , t▸t' , cr (CRCR rs▸rs' t▸t' (cinv , CR-rs-t))
+  simSR {s , crash cinv} {t} (cr CR-rs-t) (r rs▸rs') =
     let (t' , t▸t') = runSpec t r
-    in   t' , t▸t' , simSR _ t' (ar (CRAR rs▸rs' t▸t' (cinv , CR-rs-t)))
+    in   t' , t▸t' , ar (CRAR rs▸rs' t▸t' (cinv , CR-rs-t))
 
-  runSimSR : SimSR s t → s ⟦ ef ⟧ᴾ*▸ s' → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × SimSR s' t')
-  runSimSR sim-s-t ∅                 = _ , ∅ , sim-s-t
-  runSimSR sim-s-t (s*▸s'' • s''▸s') =
-    let (t'' , t*▸t'' , sim-s''-t'') = runSimSR sim-s-t s*▸s''
-        (t'  , t''▸t' , sim-s'-t'  ) = SimSR.next sim-s''-t'' s''▸s'
-    in  _ , (t*▸t'' • t''▸t') , sim-s'-t'
+  runSimSR : SR s t → s ⟦ ef ⟧ᴾ*▸ s' → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × SR s' t')
+  runSimSR SR-s-t ∅                 = _ , ∅ , SR-s-t
+  runSimSR SR-s-t (s*▸s'' • s''▸s') =
+    let (t'' , t*▸t'' , SR-s''-t'') = runSimSR SR-s-t s*▸s''
+        (t'  , t''▸t' , SR-s'-t'  ) = simSR SR-s''-t'' s''▸s'
+    in  _ , (t*▸t'' • t''▸t') , SR-s'-t'
 
   lemma1-wᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
-                SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
+                SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
                 read (proj₁ s') ≐ read (proj₁ s'')
-  lemma1-wᶜ all₁ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
-    with runSimSR sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
-  ...  | t'  , t*▸t'   , sim-s'-t'
-    with runSimSR sim-s'-t' (s'*▸ • r {rinv' = rinv''} ▸rs'')
-  ...  | t'' , t'*▸t'' , sim-s''-t''
-    with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t''
-  ...  | ar AR-rs'-t'         | ar AR-rs''-t'' =
+  lemma1-wᶜ all₁ all₂ all₃ SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+    with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
+  ...  | t'  , t*▸t'   , ar AR-rs'-t'
+    with runSimSR (ar AR-rs'-t') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+  ...  | t'' , t'*▸t'' , ar AR-rs''-t'' =
                                   ObsEquiv (rinv' , AR-rs'-t')            >≐>
                                   lemma-2-wᶜ all₁ all₂ all₃ t*▸t' t'*▸t'' >≐>
                                   sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
 
   lemma1-fᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
-                SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
+                SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
                 read (proj₁ s') ≐ read (proj₁ s''') ⊎ read (proj₁ s'') ≐ read (proj₁ s''')
-  lemma1-fᶜ {ef₃ = ef₃} all₁ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') rs'▸rs'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
+  lemma1-fᶜ {ef₃ = ef₃} all₁ all₂ all₃ SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') rs'▸rs'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
     with splitRTC ([] • fᶜ) ef₃ rs''▸
   ...  | rs''₁ , ∅ • fᶜ {rinv = rinv''} rs''▸rs''₁ , rs''₁▸rs''₂
-    with runSimSR sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
-  ...  | t'   , t*▸t'     , sim-s'-t'
-    with runSimSR sim-s'-t' rs'▸rs''
-  ...  | t''  , t'*▸t''   , sim-s''-t''
-    with runSimSR sim-s''-t'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
-  ...  | t''' , t''*▸t''' , sim-s'''-t'''
-    with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t'' | SimSR.curr sim-s'''-t'''
-  ...  | ar AR-rs'-t'         | ar AR-rs''-t''         | ar AR-rs'''-t'''
+    with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
+  ...  | t'   , t*▸t'     , ar AR-rs'-t'
+    with runSimSR (ar AR-rs'-t') rs'▸rs''
+  ...  | t''  , t'*▸t''   , ar AR-rs''-t''
+    with runSimSR (ar AR-rs''-t'') (rs''▸ • r {rinv' = rinv'''} ▸rs''')
+  ...  | t''' , t''*▸t''' , ar AR-rs'''-t'''
     with lemma-2-fᶜ all₁ all₂ all₃ t*▸t' t'*▸t'' t''*▸t'''
   ...  | inj₁ succ = inj₂ $ ObsEquiv (rinv'' , AR-rs''-t'') >≐>
                             succ >≐> sym-≐ (ObsEquiv (rinv''' , AR-rs'''-t'''))
   ...  | inj₂ fail = inj₁ $ ObsEquiv (rinv' , AR-rs'-t') >≐>
                             fail >≐> sym-≐ (ObsEquiv (rinv''' , AR-rs'''-t'''))
 
-  initialisation : Init rs → ∃[ rinv ] ∃[ t ] SimSR (rs , normal rinv) t
+  initialisation : Init rs → ∃[ rinv ] ∃[ t ] SR (rs , normal rinv) t
   initialisation init-rs = let (t , RI-rs , AR-rs-t) = init _ init-rs
-                           in  RI-rs , t , simSR _ t (ar AR-rs-t)
+                           in  RI-rs , t , ar AR-rs-t
 
   lift-wf : All NormalSuccess ef → rs ⟦ ef ⟧ᴿ*▸ rs' →
             ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
