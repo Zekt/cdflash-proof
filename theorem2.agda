@@ -124,9 +124,6 @@ data All (P : Action → Set) : Fragment → Set where
   []  : All P []
   _∷_ : ∀ {x : Action} {xs : Fragment} → All P xs → P x → All P (xs • x)
 
-fromAll : {P : Action → Set} → All P (ef • ac) → P ac
-fromAll (all ∷ x) = x
-
 mapAll : {P Q : Action → Set} {xs : Fragment} → ({x : Action} → P x → Q x) → All P xs → All Q xs
 mapAll pq []        = []
 mapAll pq (all ∷ x) = mapAll pq all ∷ pq x
@@ -191,11 +188,11 @@ lemma-2-wᶜ _ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸
                                                 lemma2-1 wᶜ all₁ all₂ s'▸s >≐>
                                                 sv
 
-lemma-2-fᶜ : ∀ (s₀ s₁ s₂ s : State) → ∀ {frag-w frag-rᶜ}
+lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
            → All NormalSuccess ef → All Write frag-w → All RecoveryCrash frag-rᶜ
            → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ (frag-rᶜ • r) ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
-lemma-2-fᶜ _ _ _ _ {frag-w} {frag-rᶜ} _ all₁ all₂ (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
+lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} _ all₁ all₂ (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
       with splitRTC ([] • fᶜ) frag-rᶜ s₂▸s
 ...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ (vsᶜ >≐> idemₛ (mapAll rᶜ→sr all₂ ) s₂'▸s >≐> sv)
 ...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs)            >≐>
@@ -339,14 +336,13 @@ module CrashDeterminacy
   theorem1 : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
-  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs₂ • f▸rs') (rs'▸rs'₃ • r▸rs'')
+  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs') (rs'▸rs'₃ • r▸rs'')
       with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₃
   ...    | rs'₁ , rs'▸rs'₁ • wᶜ▸rs'₂ , rs'₁▸rs'₃ =
              let init-ri , init-t , init-ef = initialisation i
-                 wf-ri   , wf-ef            = lift-wf all₁ rs*▸rs₂
+                 wf-ri   , wf-ef            = lift-wf (all₁ ∷ f) rs*▸rs'
                  w-ri    , w-ef             = lift-w  all₂ rs'▸rs'₁
                  rᶜ-ci   , rᶜ-ef            = lift-rᶜ all₃ rs'₁▸rs'₃
-             in  main-lemma1 all₁ all₂ all₃ init-ef
-                             (wf-ef • f  {rinv = wf-ri} {rinv' = RIRI f  f▸rs'   wf-ri} f▸rs')
-                             (w-ef  • wᶜ {rinv = w-ri}  {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri}  wᶜ▸rs'₂ ++RTC
-                              rᶜ-ef • r  {cinv = rᶜ-ci} {rinv' = CIRI    r▸rs''  rᶜ-ci} r▸rs'')
+             in  main-lemma1 all₁ all₂ all₃ init-ef wf-ef
+                             (w-ef  • wᶜ {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri}  wᶜ▸rs'₂  ++RTC
+                              rᶜ-ef • r  {rinv' = CIRI    r▸rs''  rᶜ-ci} r▸rs'')
