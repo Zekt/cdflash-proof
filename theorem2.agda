@@ -95,17 +95,17 @@ data Step (s s' : State) : Action → Set where
                                           → State.stable s ≐ State.stable s'
                                           → Step s s' w[ addr ↦ dat ]
   f  : State.volatile s ≐ State.volatile s'
-        → State.volatile s ≐ State.stable s'
-        → Step s s' f
+     → State.volatile s ≐ State.stable s'
+     → Step s s' f
   r  : State.stable s ≐ State.volatile s'
-        → State.stable s ≐ State.stable s'
-        → Step s s' r
+     → State.stable s ≐ State.stable s'
+     → Step s s' r
   wᶜ : State.stable s ≐ State.stable s'
-        → Step s s' wᶜ
+     → Step s s' wᶜ
   fᶜ : State.volatile s ≐ State.stable s' ⊎ State.stable s ≐ State.stable s'
-        → Step s s' fᶜ
+     → Step s s' fᶜ
   rᶜ : State.stable s ≐ State.stable s'
-        → Step s s' rᶜ
+     → Step s s' rᶜ
 
 _⟦_⟧▸_ : State → Action → State → Set
 s ⟦ ac ⟧▸ s' = Step s s' ac
@@ -143,20 +143,20 @@ data RTC {S : Set} (R : S → Action → S → Set) : S → Fragment → S → S
 _⟦_⟧*▸_ = RTC _⟦_⟧▸_
 
 splitRTC : {S : Set} {R : S → Action → S → Set} {s s' : S} (ef₁ ef₂ : Fragment)
-        → RTC R s (ef₁ ⊙ ef₂) s' → ∃[ s'' ] (RTC R s ef₁ s'' × RTC R s'' ef₂ s')
+         → RTC R s (ef₁ ⊙ ef₂) s' → ∃[ s'' ] (RTC R s ef₁ s'' × RTC R s'' ef₂ s')
 splitRTC ef₁ []                t = (_ , t , ∅)
 splitRTC ef₁ (ef₂ • ac) (t • rr) = let (s'' , t₁ , t₂) = splitRTC ef₁ ef₂ t in (s'' , t₁ , t₂ • rr)
 
 _++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : Fragment}
-         → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
+        → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
 tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
 
 reserve : {ac : Action} → isSR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
-reserve w (w _ _ _ ss) = ss
-reserve r (r _ ss) = ss
-reserve wᶜ (wᶜ ss) = ss
-reserve rᶜ (rᶜ ss) = ss
+reserve w  (w _ _ _ ss) = ss
+reserve r  (r _ ss)     = ss
+reserve wᶜ (wᶜ ss)      = ss
+reserve rᶜ (rᶜ ss)      = ss
 
 idemₛ : ∀ {frag : Fragment} → All isSR frag
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
@@ -176,9 +176,9 @@ lemma2-1 : ∀ {ac : Action} → isSR ac
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
-... | s″ , s▸s″ • x , s″x▸s'  = idemₛ (mapAll w→sr all₁) s▸s″ >≐>
-                                reserve du x                  >≐>
-                                idemₛ (mapAll rᶜ→sr all₂) s″x▸s'
+...    | s″ , s▸s″ • x , s″x▸s'  = idemₛ (mapAll w→sr all₁) s▸s″    >≐>
+                                   reserve du x                     >≐>
+                                   idemₛ (mapAll rᶜ→sr all₂) s″x▸s'
 
 lemma2-2-f : ∀ {s s' : State} {ef : Fragment} → s ⟦ ef • f ⟧*▸ s' → State.volatile s' ≐ State.stable s'
 lemma2-2-f (s▸s' • (f vv vs)) = sym-≐ vv >≐> vs
@@ -187,7 +187,7 @@ lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {ef frag-w frag-rᶜ}
            → All NormalSuccess ef → All Write frag-w → All RecoveryCrash frag-rᶜ
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
-lemma-2-wᶜ _ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸s'            >≐>
+lemma-2-wᶜ _ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸s'           >≐>
                                                 lemma2-1 wᶜ all₁ all₂ s'▸s >≐>
                                                 sv
 
@@ -198,9 +198,9 @@ lemma-2-fᶜ : ∀ (s₀ s₁ s₂ s : State) → ∀ {frag-w frag-rᶜ}
 lemma-2-fᶜ _ _ _ _ {frag-w} {frag-rᶜ} _ all₁ all₂ (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
       with splitRTC ([] • fᶜ) frag-rᶜ s₂▸s
 ...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ (vsᶜ >≐> idemₛ (mapAll rᶜ→sr all₂ ) s₂'▸s >≐> sv)
-...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ (lemma2-2-f (s₀▸s₁ • f vv vs )          >≐>
-                                                   idemₛ (mapAll w→sr all₁) s₁▸s₂ >≐>
-                                                   ssᶜ >≐> idemₛ (mapAll rᶜ→sr all₂) s₂'▸s >≐> sv)
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs)            >≐>
+                                                    idemₛ (mapAll w→sr all₁) s₁▸s₂          >≐>
+                                                    ssᶜ >≐> idemₛ (mapAll rᶜ→sr all₂) s₂'▸s >≐> sv
 
 module CrashDeterminacy
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
@@ -305,9 +305,9 @@ module CrashDeterminacy
   ...  | t'' , t'*▸t'' , sim-s''-t''
     with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t''
   ...  | ar AR-rs'-t'         | ar AR-rs''-t'' =
-                                  ObsEquiv (rinv' , AR-rs'-t')
-                              >≐> lemma-2-wᶜ all₁ all₂ all₃ t*▸t' t'*▸t''
-                              >≐> sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
+                                  ObsEquiv (rinv' , AR-rs'-t')            >≐>
+                                  lemma-2-wᶜ all₁ all₂ all₃ t*▸t' t'*▸t'' >≐>
+                                  sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
 
   initialisation : Init rs → ∃[ rinv ] ∃[ t ] SimSR (rs , normal rinv) t
   initialisation init-rs = let (t , RI-rs , AR-rs-t) = init _ init-rs
@@ -346,10 +346,7 @@ module CrashDeterminacy
                  wf-ri   , wf-ef            = lift-wf all₁ rs*▸rs₂
                  w-ri    , w-ef             = lift-w  all₂ rs'▸rs'₁
                  rᶜ-ci   , rᶜ-ef            = lift-rᶜ all₃ rs'₁▸rs'₃
-             in  main-lemma1 all₁ all₂ all₃
-                             init-ef
-                             (wf-ef • f {rinv = wf-ri} {rinv' = RIRI f f▸rs' wf-ri} f▸rs')
-                             ((proj₂ (lift-w  all₂ rs'▸rs'₁)
-                               • wᶜ {rinv = w-ri} {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri} wᶜ▸rs'₂) ++RTC
-                              (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₃)
-                               • r  {cinv = rᶜ-ci} {rinv' = CIRI r▸rs'' rᶜ-ci} r▸rs'' ))
+             in  main-lemma1 all₁ all₂ all₃ init-ef
+                             (wf-ef • f  {rinv = wf-ri} {rinv' = RIRI f  f▸rs'   wf-ri} f▸rs')
+                             (w-ef  • wᶜ {rinv = w-ri}  {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri}  wᶜ▸rs'₂ ++RTC
+                              rᶜ-ef • r  {cinv = rᶜ-ci} {rinv' = CIRI    r▸rs''  rᶜ-ci} r▸rs'')
