@@ -190,7 +190,7 @@ lemma-2-wᶜ _ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸
 
 lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
            → All NormalSuccess ef → All Write frag-w → All RecoveryCrash frag-rᶜ
-           → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ (frag-rᶜ • r) ⟧*▸ s
+           → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
 lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} _ all₁ all₂ (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
       with splitRTC ([] • fᶜ) frag-rᶜ s₂▸s
@@ -227,6 +227,7 @@ module CrashDeterminacy
     cinv  : CI rs
     rs'   : RawStateᴾ
     rs''  : RawStateᴾ
+    rs''' : RawStateᴾ
     rinv' : RI rs'
     cinv' : CI rs'
 
@@ -240,9 +241,13 @@ module CrashDeterminacy
   Stateᴾ = Σ[ rs ∈ RawStateᴾ ] Inv rs
 
   variable
-    s   : Stateᴾ
-    s'  : Stateᴾ
-    s'' : Stateᴾ
+    s    : Stateᴾ
+    s'   : Stateᴾ
+    s''  : Stateᴾ
+    s''' : Stateᴾ
+    s′   : Stateᴾ
+    s″   : Stateᴾ
+    s‴   : Stateᴾ
 
   data _⟦_⟧ᴾ▸_ : Stateᴾ → Action → Stateᴾ → Set where
     w  : rs ⟦ w[ addr ↦ dat ] ⟧ᴿ▸ rs' → (rs , normal rinv) ⟦ w[ addr ↦ dat ] ⟧ᴾ▸ (rs' , normal rinv')
@@ -292,10 +297,10 @@ module CrashDeterminacy
         (t'  , t''▸t' , sim-s'-t'  ) = SimSR.next sim-s''-t'' s''▸s'
     in  _ , (t*▸t'' • t''▸t') , sim-s'-t'
 
-  main-lemma1 : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
+  lemma1-wᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
                 SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
                 read (proj₁ s') ≐ read (proj₁ s'')
-  main-lemma1 all₁ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+  lemma1-wᶜ all₁ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
     with runSimSR sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
   ...  | t'  , t*▸t'   , sim-s'-t'
     with runSimSR sim-s'-t' (s'*▸ • r {rinv' = rinv''} ▸rs'')
@@ -305,6 +310,26 @@ module CrashDeterminacy
                                   ObsEquiv (rinv' , AR-rs'-t')            >≐>
                                   lemma-2-wᶜ all₁ all₂ all₃ t*▸t' t'*▸t'' >≐>
                                   sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
+
+  lemma1-fᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
+                SimSR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
+                read (proj₁ s') ≐ read (proj₁ s''') ⊎ read (proj₁ s'') ≐ read (proj₁ s''')
+  lemma1-fᶜ {ef₃ = ef₃} all₁ all₂ all₃ sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs') rs'▸rs'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
+    with splitRTC ([] • fᶜ) ef₃ rs''▸
+  ...  | rs''₁ , ∅ • fᶜ {rinv = rinv''} rs''▸rs''₁ , rs''₁▸rs''₂
+    with runSimSR sim-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
+  ...  | t'   , t*▸t'     , sim-s'-t'
+    with runSimSR sim-s'-t' rs'▸rs''
+  ...  | t''  , t'*▸t''   , sim-s''-t''
+    with runSimSR sim-s''-t'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
+  ...  | t''' , t''*▸t''' , sim-s'''-t'''
+    with SimSR.curr sim-s'-t' | SimSR.curr sim-s''-t'' | SimSR.curr sim-s'''-t'''
+  ...  | ar AR-rs'-t'         | ar AR-rs''-t''         | ar AR-rs'''-t'''
+    with lemma-2-fᶜ all₁ all₂ all₃ t*▸t' t'*▸t'' t''*▸t'''
+  ...  | inj₁ succ = inj₂ $ ObsEquiv (rinv'' , AR-rs''-t'') >≐>
+                            succ >≐> sym-≐ (ObsEquiv (rinv''' , AR-rs'''-t'''))
+  ...  | inj₂ fail = inj₁ $ ObsEquiv (rinv' , AR-rs'-t') >≐>
+                            fail >≐> sym-≐ (ObsEquiv (rinv''' , AR-rs'''-t'''))
 
   initialisation : Init rs → ∃[ rinv ] ∃[ t ] SimSR (rs , normal rinv) t
   initialisation init-rs = let (t , RI-rs , AR-rs-t) = init _ init-rs
@@ -333,16 +358,34 @@ module CrashDeterminacy
 
 --   ef₁   f   ef₂    wᶜ    ef₃    r
 -- rs   rs₁ rs'   rs'₁  rs'₂   rs'₃ rs''
-  theorem1 : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
+  theorem-wᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
-  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs') (rs'▸rs'₃ • r▸rs'')
+  theorem-wᶜ {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i rs*▸rs' (rs'▸rs'₃ • r▸rs'')
       with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₃
   ...    | rs'₁ , rs'▸rs'₁ • wᶜ▸rs'₂ , rs'₁▸rs'₃ =
              let init-ri , init-t , init-ef = initialisation i
                  wf-ri   , wf-ef            = lift-wf (all₁ ∷ f) rs*▸rs'
                  w-ri    , w-ef             = lift-w  all₂ rs'▸rs'₁
                  rᶜ-ci   , rᶜ-ef            = lift-rᶜ all₃ rs'₁▸rs'₃
-             in  main-lemma1 all₁ all₂ all₃ init-ef wf-ef
-                             (w-ef  • wᶜ {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri}  wᶜ▸rs'₂  ++RTC
-                              rᶜ-ef • r  {rinv' = CIRI    r▸rs''  rᶜ-ci} r▸rs'')
+             in  lemma1-wᶜ all₁ all₂ all₃ init-ef wf-ef
+                           (w-ef  • wᶜ {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri}  wᶜ▸rs'₂ ++RTC
+                            rᶜ-ef • r  {rinv' = CIRI    r▸rs''  rᶜ-ci} r▸rs'')
+
+--   ef₁   f   ef₂    fᶜ     ef₃     r
+-- rs   rs₁ rs'   rs''  rs''₁   rs''₂ rs'''
+  theorem-fᶜ : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
+             Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
+             read rs' ≐ read rs''' ⊎ read rs'' ≐ read rs'''
+  theorem-fᶜ {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
+      with splitRTC ([] • fᶜ) ef₃ rs''▸rs''₂
+  ...    | rs''₁ , ∅ • fᶜ▸rs''₁ , rs''₁▸rs''₂
+      with let init-ri , init-t , init-ef = initialisation i
+               wf-ri   , wf-ef            = lift-wf (all₁ ∷ f) rs*▸rs'
+               w-ri    , w-ef             = lift-w  all₂ rs'▸rs''
+               rᶜ-ci   , rᶜ-ef            = lift-rᶜ all₃ rs''₁▸rs''₂
+           in  lemma1-fᶜ all₁ all₂ all₃ init-ef wf-ef w-ef
+                         (∅     • fᶜ {cinv' = RICI fᶜ fᶜ▸rs''₁ w-ri} fᶜ▸rs''₁ ++RTC
+                          rᶜ-ef • r  {rinv' = CIRI r▸rs''' rᶜ-ci}    r▸rs''')
+  ...    | inj₁ succ = inj₁ succ
+  ...    | inj₂ fail = inj₂ fail
