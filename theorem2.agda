@@ -34,30 +34,30 @@ variable
 
 -- Stable Reserving Actions
 data isSR : Action → Set where -- disjoint union of stable reserving actions
-  cw  : isSR w[ addr ↦ dat ]
-  cr  : isSR r
-  cwᶜ : isSR wᶜ
-  crᶜ : isSR rᶜ
+  w  : isSR w[ addr ↦ dat ]
+  r  : isSR r
+  wᶜ : isSR wᶜ
+  rᶜ : isSR rᶜ
 
 data Success : Action → Set where -- disjoint union of success functions
-  cw : ac ≡ w[ addr ↦ dat ] → Success w[ addr ↦ dat ]
-  cf : ac ≡ f → Success f
-  cr : ac ≡ r → Success r
+  w : ac ≡ w[ addr ↦ dat ] → Success w[ addr ↦ dat ]
+  f : ac ≡ f → Success f
+  r : ac ≡ r → Success r
 
 data Crash : Action → Set where -- disjoint union of crash functions
-  cwᶜ : ac ≡ wᶜ → Crash wᶜ
-  cfᶜ : ac ≡ fᶜ → Crash fᶜ
-  crᶜ : ac ≡ rᶜ → Crash rᶜ
+  wᶜ : ac ≡ wᶜ → Crash wᶜ
+  fᶜ : ac ≡ fᶜ → Crash fᶜ
+  rᶜ : ac ≡ rᶜ → Crash rᶜ
 
 data Crash* : Action → Set where -- disjoint union of crash functions we care
-  cwᶜ : ac ≡ wᶜ → Crash* wᶜ
-  cfᶜ : ac ≡ fᶜ → Crash* fᶜ
+  wᶜ : ac ≡ wᶜ → Crash* wᶜ
+  fᶜ : ac ≡ fᶜ → Crash* fᶜ
 
 data Write : Action → Set where
-  cw : Write w[ addr ↦ dat ]
+  w : Write w[ addr ↦ dat ]
 
 data RecoveryCrash : Action → Set where
-  crᶜ : RecoveryCrash rᶜ
+  rᶜ : RecoveryCrash rᶜ
 
 data NormalSuccess : Action → Set where
   w : NormalSuccess w[ addr ↦ dat ]
@@ -153,10 +153,10 @@ tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
 
 reserve : {ac : Action} → isSR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
-reserve (cw ) (w _ _ _ ss) = ss
-reserve (cr ) (r _ ss) = ss
-reserve (cwᶜ ) (wᶜ ss) = ss
-reserve (crᶜ ) (rᶜ ss) = ss
+reserve w (w _ _ _ ss) = ss
+reserve r (r _ ss) = ss
+reserve wᶜ (wᶜ ss) = ss
+reserve rᶜ (rᶜ ss) = ss
 
 idemₛ : ∀ {frag : Fragment} → All isSR frag
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
@@ -165,10 +165,10 @@ idemₛ [] ∅ = λ{_ → refl}
 idemₛ (all ∷ x) (s*▸s'' • s''▸s') = (idemₛ all s*▸s'') >≐> reserve x s''▸s'
 
 w→sr : Write ac → isSR ac
-w→sr cw = cw
+w→sr w = w
 
 rᶜ→sr : RecoveryCrash ac → isSR ac
-rᶜ→sr crᶜ = crᶜ
+rᶜ→sr rᶜ = rᶜ
 
 lemma2-1 : ∀ {ac : Action} → isSR ac
          → ∀ {frag-w frag-rᶜ : Fragment}
@@ -188,7 +188,7 @@ lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {ef frag-w frag-rᶜ}
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
 lemma-2-wᶜ _ all₁ all₂ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸s'            >≐>
-                                                lemma2-1 cwᶜ all₁ all₂ s'▸s >≐>
+                                                lemma2-1 wᶜ all₁ all₂ s'▸s >≐>
                                                 sv
 
 lemma-2-fᶜ : ∀ (s₀ s₁ s₂ s : State) → ∀ {frag-w frag-rᶜ}
@@ -325,27 +325,31 @@ module CrashDeterminacy
 
   lift-w : All Write ef → rs ⟦ ef ⟧ᴿ*▸ rs' →
            ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-w all rs*▸rs' = lift-wf (mapAll (λ{cw → w}) all) rs*▸rs'
+  lift-w all rs*▸rs' = lift-wf (mapAll (λ{w → w}) all) rs*▸rs'
 
   lift-rᶜ : All RecoveryCrash ef → rs ⟦ ef ⟧ᴿ*▸ rs' →
             ∃[ cinv' ] ((rs , crash cinv) ⟦ ef ⟧ᴾ*▸ (rs' , crash cinv'))
   lift-rᶜ all ∅ = _ , ∅
-  lift-rᶜ (all ∷ crᶜ) (rs*▸rs'' • rs''▸rs') =
+  lift-rᶜ (all ∷ rᶜ) (rs*▸rs'' • rs''▸rs') =
     let (cinv'' , s*▸s'') = lift-rᶜ all rs*▸rs''
     in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
 
+--   ef₁   f   ef₂    wᶜ    ef₃    r
+-- rs   rs₁ rs'   rs'₁  rs'₂   rs'₃ rs''
   theorem1 : All NormalSuccess ef₁ → All Write ef₂ → All RecoveryCrash ef₃ →
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
-  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs₁ • f▸rs') (rs'▸rs'₂ • r▸rs'')
-      with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₂
-  ...    | rs'₁ , rs'▸rs'₀ • wᶜ▸rs'₁ , rs'₁▸rs'₂ =
+  theorem1 {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i (rs*▸rs₂ • f▸rs') (rs'▸rs'₃ • r▸rs'')
+      with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₃
+  ...    | rs'₁ , rs'▸rs'₁ • wᶜ▸rs'₂ , rs'₁▸rs'₃ =
              let init-ri , init-t , init-ef = initialisation i
-                 wf-ri   , wf-ef            = lift-wf all₁ rs*▸rs₁
-                 w-ri    , w-ef             = lift-w  {rinv = {!!}} all₂ rs'▸rs'₀
-                 rᶜ-ci   , rᶜ-ef            = lift-rᶜ {cinv = {!!}} all₃ rs'₁▸rs'₂
+                 wf-ri   , wf-ef            = lift-wf all₁ rs*▸rs₂
+                 w-ri    , w-ef             = lift-w  all₂ rs'▸rs'₁
+                 rᶜ-ci   , rᶜ-ef            = lift-rᶜ all₃ rs'₁▸rs'₃
              in  main-lemma1 all₁ all₂ all₃
                              init-ef
-                             (wf-ef • f {rinv = wf-ri} {rinv' = RIRI {!!} f▸rs' wf-ri} f▸rs')
-                             ((proj₂ (lift-w  all₂ rs'▸rs'₀)  • wᶜ {rinv = w-ri} {{!!}} wᶜ▸rs'₁) ++RTC
-                              (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₂) • r  {cinv = rᶜ-ci} {{!!}} r▸rs'' ))
+                             (wf-ef • f {rinv = wf-ri} {rinv' = RIRI f f▸rs' wf-ri} f▸rs')
+                             ((proj₂ (lift-w  all₂ rs'▸rs'₁)
+                               • wᶜ {rinv = w-ri} {cinv' = RICI wᶜ wᶜ▸rs'₂ w-ri} wᶜ▸rs'₂) ++RTC
+                              (proj₂ (lift-rᶜ all₃ rs'₁▸rs'₃)
+                               • r  {cinv = rᶜ-ci} {rinv' = CIRI r▸rs'' rᶜ-ci} r▸rs'' ))
