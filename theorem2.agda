@@ -11,7 +11,6 @@ open Eq using (_≡_; refl; sym)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Product using (_×_; _,_; proj₁; proj₂; Σ-syntax; ∃; ∃-syntax)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
-open import Data.Vec
 open import Function using (_$_)
 
 infixl 20 _•_
@@ -51,6 +50,7 @@ data NormalSuccess : Action → Set where
 data NormalCrash : Action → Set where
   wᶜ : NormalCrash wᶜ
   fᶜ : NormalCrash fᶜ
+
 record State : Set where
   constructor <_,_>
   field
@@ -124,11 +124,11 @@ data RTC {S : Set} (R : S → Action → S → Set) : S → Fragment → S → S
 
 _⟦_⟧*▸_ = RTC _⟦_⟧▸_
 
-splitRTC : {S : Set} {R : S → Action → S → Set} {s s' : S} (ef₁ ef₂ : Fragment)
-         → RTC R s (ef₁ ⊙ ef₂) s' → ∃[ s'' ] (RTC R s ef₁ s'' × RTC R s'' ef₂ s')
-splitRTC ef₁ []                t = (_ , t , ∅)
-splitRTC ef₁ (ef₂ • ac) (t • rr) = let (s'' , t₁ , t₂) = splitRTC ef₁ ef₂ t
-                                   in  (s'' , t₁ , t₂ • rr)
+splitRTC : {S : Set} {R : S → Action → S → Set} {s s' : S} {splitOn rest : Fragment}
+         → RTC R s (splitOn ⊙ rest) s' → ∃[ s'' ] (RTC R s splitOn s'' × RTC R s'' rest s')
+splitRTC {splitOn = ef₁} {rest = []}                t = (_ , t , ∅)
+splitRTC {splitOn = ef₁} {rest = (ef₂ • ac)} (t • rr) = let (s'' , t₁ , t₂) = splitRTC t
+                                                        in  (s'' , t₁ , t₂ • rr)
 
 _++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : Fragment}
         → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
@@ -158,7 +158,7 @@ lemma2-1 : ∀ {ac : Action} → isSR ac
          → All Write frag-w → All RecoveryCrash frag-rᶜ
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
-lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC (frag-w • ac) frag-rᶜ s▸s'
+lemma2-1 {ac} du {frag-w} {frag-rᶜ} all₁ all₂ s▸s' with splitRTC {splitOn = frag-w • ac} s▸s'
 ...    | s″ , s▸s″ • x , s″x▸s'  = idemₛ (mapAll w→sr  all₁) s▸s″   <≐>
                                    reserve du x                     <≐>
                                    idemₛ (mapAll rᶜ→sr all₂) s″x▸s'
@@ -179,7 +179,7 @@ lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
            → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
 lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} _ all₁ all₂ (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
-      with splitRTC ([] • fᶜ) frag-rᶜ s₂▸s
+      with splitRTC {splitOn = ([] • fᶜ)} s₂▸s
 ...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ (vsᶜ <≐> idemₛ (mapAll rᶜ→sr all₂ ) s₂'▸s <≐> sv)
 ...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs)    <≐>
                                                     idemₛ (mapAll w→sr  all₁) s₁▸s₂ <≐> ssᶜ <≐>
@@ -290,7 +290,7 @@ module CrashDeterminacy
                 read (proj₁ s') ≐ read (proj₁ s''') ⊎ read (proj₁ s'') ≐ read (proj₁ s''')
   lemma1-fᶜ {ef₃ = ef₃} all₁ all₂ all₃
             SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') rs'▸rs'' (rs''▸ • r {rinv' = rinv'''} ▸rs''')
-    with splitRTC ([] • fᶜ) ef₃ rs''▸
+    with splitRTC {splitOn = [] • fᶜ} rs''▸
   ...  | rs''₁ , ∅ • fᶜ {rinv = rinv''} rs''▸rs''₁ , rs''₁▸rs''₂
     with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
   ...  | t'   , t*▸t'     , ar AR-rs'-t'
@@ -335,7 +335,7 @@ module CrashDeterminacy
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
   theorem-wᶜ {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i rs*▸rs' (rs'▸rs'₃ • r▸rs'')
-      with splitRTC (ef₂ • wᶜ) ef₃ rs'▸rs'₃
+      with splitRTC {splitOn = ef₂ • wᶜ} rs'▸rs'₃
   ...    | rs'₁ , rs'▸rs'₁ • wᶜ▸rs'₂ , rs'₁▸rs'₃ =
              let init-ri , init-t , init-ef = initialisation i
                  wf-ri   , wf-ef            = lift-wf (all₁ ∷ f) rs*▸rs'
@@ -351,7 +351,7 @@ module CrashDeterminacy
              Init rs → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
              read rs' ≐ read rs''' ⊎ read rs'' ≐ read rs'''
   theorem-fᶜ {ef₁} {ef₂} {ef₃} all₁ all₂ all₃ i rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
-      with splitRTC ([] • fᶜ) ef₃ rs''▸rs''₂
+      with splitRTC {splitOn = [] • fᶜ} rs''▸rs''₂
   ...    | rs''₁ , ∅ • fᶜ▸rs''₁ , rs''₁▸rs''₂
       with let init-ri , init-t , init-ef = initialisation i
                wf-ri   , wf-ef            = lift-wf (all₁ ∷ f) rs*▸rs'
