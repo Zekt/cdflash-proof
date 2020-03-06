@@ -1,0 +1,228 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{stmaryrd}
+\usepackage{setspace}
+%you can add more packages using the same code above
+
+%------------------
+
+%\setlength{\topmargin}{0.0in}
+%\setlength{\textheight}{10in}
+%\setlength{\oddsidemargin}{0.0in}
+%\setlength{\evensidemargin}{0.0in}
+%\setlength{\textwidth}{6.5in}
+
+%-------------------
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem*{example}{Example}
+
+%------------------
+
+%Everything before begin document is called the pre-amble and sets out how the document will look
+%It is recommended you don't touch the pre-amble until you are familiar with LateX
+
+\begin{document}
+	
+\title{Crash-Deterministic Property in Agda}
+%\author{Lin Tzu Chi}
+%\date{}
+\maketitle
+
+\begin{abstract}
+	We have proved crash-deterministic properties in Agda.
+\end{abstract}
+
+%The following code is not run because of the percentage sign, but you might find it useful for future work
+% \tableofcontents
+
+\section{Datatypes}
+
+To define the theorem, following datatypes(definitions) are required:
+
+\begin{align*}
+%\noalign{\center{\small{State of Spec, a pair of two mappings from Address to Data, representing abstracted volatile and stable states respectively.}}}
+	\mathit{Addr}, \mathit{Data} &: \mathit{undefined}\\
+	\mathit{State} &: (Addr \to Data) \times (Addr \to Data)\\
+%\noalign{\center{\small{State of Prog, we don't have to know the details.}}}
+	\mathit{RawState^P} &: \mathit{undefined}\\
+	\mathit{State^P} &: \{ \mathit{rs} \in \mathit{RawState^P} | \mathit{RI(rs) \lor CI(rs)} \}\\
+	\mathit{Action} &: \{w(Addr, Data), f, r, w^c, f^c, r^c\}\\
+	\mathit{Fragment} &: [\mathit{Action}]\\
+\end{align*}
+
+$\mathit{State}$ is the type of states in the operational specification, which is a pair of mappings from $Addr$ to $Data$, the types of which are both $\mathit{undefined}$. these two mappings represent the volatile and stable memory state of the specification.  By $\mathit{undefined}$ we mean that since the actual meanings of some types are proof irrelevant, they are abstracted as module parameters in Agda, and can be given concrete meanings if needed in further works. 
+
+For states in the actual program, the meaning of $\mathit{RawState^P}$ is also proof irrelevant. $\mathit{State^P}$ is the type of states in the program we care \---- states that satisfies Representation Invariance or Crash Invariance. $\mathit{Fragment}$ is a list of $\mathit{Action}$.
+
+And we need functions to represent reading from states:
+\begin{align*}
+	read &: \mathit{RawState^P} \to (\mathit{Addr} \to \mathit{Data})\\
+	volatile &: \mathit{State} \to (\mathit{Addr} \to \mathit{Data})\\
+	stable &: \mathit{State} \to (\mathit{Addr} \to \mathit{Data})
+\end{align*}
+
+\newpage
+
+Single-step transitions are defined as relations on two states indexed by $\mathit{Action}$, and multi-step transitions as their reflextive transitive clousures (indexed by $\mathit{Fragmant}$):
+\begin{align*}
+	\llbracket \mathit{Action} \rrbracket, \llbracket \mathit{Fragment} \rrbracket^* &: \text{Relation on $\mathit{State \times State}$.}\\
+	\llbracket \mathit{Action} \rrbracket^R, \llbracket \mathit{Fragment} \rrbracket^{R*} &: \text{Relation on $\mathit{RawState^P \times RawState^P}$.}\\
+	\llbracket \mathit{Action} \rrbracket^P, \llbracket \mathit{Fragment} \rrbracket^{P*} &: \text{Relation on $\mathit{State^P \times State^P}$.}\\
+\end{align*}
+
+For any two states $s$, $s'$ in specification, $s \llbracket \mathit{Action} \rrbracket s'$ if and only if for each $\mathit{Action}$, followings hold:
+\begin{align*}
+	s \llbracket w(addr, data) \rrbracket s' &: \mathit{volatile(s)[addr \mapsto data]} \doteq \mathit{volatile(s')}\\
+	& \ \  \land stable(s) \doteq stable(s')\\
+	s \llbracket f \rrbracket s' &: \mathit{volatile(s)} \doteq \mathit{volatile(s')} \land \mathit{volatile(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket r \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{volatile(s')} \land \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket w^c \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket f^c \rrbracket s' &: \mathit{volatile(s)} \doteq \mathit{stable(s')} \lor \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket r^c \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{stable(s')}
+\end{align*}
+
+Important predicates are defined as follows:
+\begin{align*}
+	\mathit{Init^P(rs : RawState^P)} &: \text{$\mathit{rs}$ is an initial state.}\\
+	\mathit{RI(rs : RawState^P)} &: \text{$\mathit{rs}$ satisfies Representation Invariance.} \\
+	\mathit{CI(rs : RawState^P)} &: \text{$\mathit{rs}$ satisfies Crash Invariance.} \\
+	\mathit{AR(rs : RawState^P, s : State)} &: \text{$\mathit{rs}$ and $s$ satisfies Abstract Relation.} \\
+	\mathit{CR(rs : RawState^P, s : State)} &: \text{$\mathit{rs}$ and $s$ satisfies Crash Relation.} \\
+\end{align*}
+
+Lemmas that are trivial or have been proved with the theorem prover can be assumed here:
+\begin{align*}
+	\mathit{runSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
+	\mathit{ObsEquiv} &: \forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp\\
+	 &\qquad \qquad \qquad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)}\\
+	\mathit{init} &: \forall \mathit{rs} \in \mathit{RawState^P} \ldotp\\ 
+	 &\qquad \qquad \qquad \mathit{Init(rs) \implies \exists s \in \mathit{State} \ldotp RI(rs) \land AR(rs, s)}
+\end{align*}
+We can now proceed to define and prove the theorem.
+
+
+\subsection{Lemmas}
+
+\begin{lemma}
+\begin{align*}
+	\forall s, s', s'' \in \mathit{State} \ldotp s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket s' \land s' \llbracket \mathit{w\ast} \cdot w^c \cdot \mathit{r^c\ast} \cdot r \rrbracket s'' \\
+	  \implies \mathit{volatile(s')} \doteq \mathit{volatile(s'')}
+\end{align*}
+\end{lemma}
+\begin{proof}
+	$s'$ is related with some $s \in \mathit{State}$ by $\llbracket f \rrbracket$, so
+	\begin{align*}
+		\mathit{volatile(s')} \doteq \mathit{volatile(s)} \doteq \mathit{stable(s')}
+	\end{align*}
+	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related with, there's an intermideate state $s'_i$ such that 
+	\begin{align*}
+		s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \doteq stable(s'_i)
+	\end{align*}
+	finally, by $\llbracket r \rrbracket$ we know that $\mathit{stable(s'_i) \doteq volatile(s'')}$, thus we have
+	\begin{align*}
+		\mathit{volatile(s') \doteq stable(s') \doteq stable(s'_i) \doteq volatile(s'')}
+	\end{align*}
+\end{proof}
+
+\begin{lemma}
+\begin{multline}
+      \forall s, s', s'', s''' \in \mathit{State} \ldotp \\ 
+      s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket s' \land
+      s' \llbracket \mathit{w\ast} \rrbracket^P s'' \land 
+      s'' \llbracket f^c \cdot \mathit{r^c\ast} \cdot r \rrbracket s'''\\ \implies \mathit{volatile(s')} \doteq \mathit{volatile(s'')} \lor \mathit{volatile(s')} \doteq \mathit{volatile(s''')}
+\end{multline}
+\end{lemma}
+
+\begin{lemma}
+	\begin{align*}
+		&\mathit{SR(s, t)} = \mathit{AR(s, t)} \lor \mathit{CR(s, t)}\\
+		&\forall s, s' \in \mathit{State^P}, t \in \mathit{State}, \mathit{ef} \in \mathit{Fragment} \ldotp\\
+		&\qquad \qquad \qquad \mathit{SR(s, t)} \land s \llbracket \mathit{ef} \rrbracket^{P*} s' \implies \exists t' \ldotp t\llbracket \mathit{ef} \rrbracket^* t' \land \mathit{SR(s', t')} \\
+	\end{align*}
+\end{lemma}
+\begin{proof}
+\end{proof}
+
+\section{Goal}
+
+We separate the theorem into two parts, and alter it slightly to make it more consistent with what we have proved in Agda:
+
+\begin{theorem}
+\begin{multline*}
+      \forall s, s', s'' \in \mathit{State^P} \ldotp\\\mathit{Init^P(s)} \land s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket^P s' \land s' \llbracket \mathit{w\ast} \cdot w^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^P s'' \\ \implies \mathit{read(s')} \doteq \mathit{read(s'')}
+\end{multline*}
+\end{theorem}
+
+\begin{theorem}
+\begin{multline*}
+      \forall s, s', s'', s''' \in \mathit{State^P} \ldotp\\\mathit{Init^P(s)} \land s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket^P s' \land
+      s' \llbracket \mathit{w\ast} \rrbracket^P s'' \land
+      s'' \llbracket f^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^P s'''\\
+      \implies \mathit{read(s')} \doteq \mathit{read(s''')} \lor \mathit{read(s'')} \doteq \mathit{read(s''')}
+\end{multline*}
+\end{theorem}
+
+%%\subsection{Definitions and theorems}
+%%
+%%Definitions, theorems, lemmas and so on, are 'enviroments' (like documents and lists). They need to begin and end.
+%%
+%%\begin{definition}\label{my_def}
+%%	A \emph{label} allows the user to tell Latex 'remember the numbering of that definition/theorem/equation'
+%%\end{definition}
+%%
+%%\begin{lemma} \label{my_lem}
+%%	If something has a label, then we can refer to it, without knowing what number it is 
+%%\end{lemma}
+%%
+%%\begin{proof}
+%%	For example, by calling up Definition \ref{my_def}. This works even if the ordering of things move.
+%%	Note that the end of proof square box is already there
+%%\end{proof}
+%%
+%%\begin{theorem}
+%%	And a final theorem
+%%\end{theorem}
+%%
+%%\begin{proof}
+%%	Combining Definition \ref{my_def} with Lemman \ref{my_lem} we get Equation \ref{my_eqn} below.
+%%\end{proof}
+%%
+%%\section{Including maths}
+%%
+%%Some maths, like $\varepsilon>0$ or $a_{23}=\alpha^3$, is written in-line. More important or complex maths is displayed on its own line.
+%%For example, $$ \lim_{x\to\infty}f(x)=\frac{\pi}{4}.$$
+%%
+%%Sometimes you need multiple lines of maths to line up nicely:
+%%
+%%\begin{align*}
+%%f(x+y)&=(x+y,-2(x+y))\\
+%%&=(x,-2x)+(y,-2y)\\
+%%&=f(x)+f(y),
+%%\end{align*}
+%%
+%%and sometimes you want to number lines in an equation
+%%
+%%\begin{align}
+%%A^{T} & =\begin{pmatrix}1 & 2\\
+%%3 & 4
+%%\end{pmatrix}^{T}\\
+%%\label{my_eqn}  & =\begin{pmatrix}1 & 3\\
+%%2 & 4
+%%\end{pmatrix}
+%%\end{align}
+
+
+\end{document}
