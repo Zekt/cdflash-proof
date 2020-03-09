@@ -7,6 +7,8 @@
 \usepackage{enumerate}
 \usepackage{stmaryrd}
 \usepackage{setspace}
+\usepackage{tikz}
+\usetikzlibrary{matrix}
 %you can add more packages using the same code above
 
 %------------------
@@ -35,7 +37,7 @@
 %It is recommended you don't touch the pre-amble until you are familiar with LateX
 
 \begin{document}
-	
+
 \title{Crash-Deterministic Property in Agda}
 %\author{Lin Tzu Chi}
 %\date{}
@@ -63,7 +65,7 @@ To define the theorem, following datatypes(definitions) are required:
 	\mathit{Fragment} &: [\mathit{Action}]\\
 \end{align*}
 
-$\mathit{State}$ is the type of states in the operational specification, which is a pair of mappings from $Addr$ to $Data$, the types of which are both $\mathit{undefined}$. these two mappings represent the volatile and stable memory state of the specification.  By $\mathit{undefined}$ we mean that since the actual meanings of some types are proof irrelevant, they are abstracted as module parameters in Agda, and can be given concrete meanings if needed in further works. 
+$\mathit{State}$ is the type of states in the operational specification, which is a pair of mappings from $Addr$ to $Data$, the types of which are both $\mathit{undefined}$. these two mappings represent the volatile and stable memory state of the specification.  By $\mathit{undefined}$ we mean that since the actual meanings of some types are proof irrelevant, they are abstracted as module parameters in Agda, and can be given concrete meanings if needed in further works.
 
 For states in the actual program, the meaning of $\mathit{RawState^P}$ is also proof irrelevant. $\mathit{State^P}$ is the type of states in the program we care \---- states that satisfies Representation Invariance or Crash Invariance. $\mathit{Fragment}$ is a list of $\mathit{Action}$.
 
@@ -105,17 +107,18 @@ Important predicates are defined as follows:
 
 Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
-	\mathit{runSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
+	\mathit{ExistsSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
 	\mathit{Observational Equivalence} &: \forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp\\
 	 & \quad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)}\\
-	\mathit{initialisation} &: \forall \mathit{rs} \in \mathit{RawState^P} \ldotp\\ 
+	\mathit{initialisation} &: \forall \mathit{rs} \in \mathit{State^P} \ldotp\\
 	 &\quad \mathit{Init(rs) \implies \exists s \in State \ldotp RI(rs) \land AR(rs, s)}\\
-	 \mathit{StateCorrectness} &: \forall s, s' \in \mathit{RawState^P},\\ 
-	...	 &\quad \mathit{ac} \in \{w, f\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land RI(s) \implies RI(s')}\\
-	...	 &\quad \mathit{ac} \in \{w^c, f^c\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land RI(s) \implies CI(s')}\\
-	...	 &\quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land CI(s) \implies RI(s')}\\
-	...	 &\quad \mathit{ac} \in \{r^c\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land CI(s) \implies CI(s')}\\
-	RelationCorrectness &: \mathit{\forall s, s' \in State^P, t, t' \in State,}\\
+	\mathit{PerOperationCorrectness} &:\\
+	 \mathit{StateInvariance} &: \forall s, s' \in \mathit{State^P},\\
+	...	 &\quad \mathit{ac} \in \{w, f\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land RI(s) \implies RI(s')}\\
+	...	 &\quad \mathit{ac} \in \{w^c, f^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land RI(s) \implies CI(s')}\\
+	...	 &\quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land CI(s) \implies RI(s')}\\
+	...	 &\quad \mathit{ac} \in \{r^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land CI(s) \implies CI(s')}\\
+	RelationInvariance &: \mathit{\forall s, s' \in State^P, t, t' \in State,}\\
 	...	& \quad \mathit{ac} \in \{w, f\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land AR(s, t) \implies AR(s', t')}\\
 	...	& \quad \mathit{ac} \in \{w^c, f^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land AR(s, t) \implies CR(s', t')}\\
 	...	& \quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
@@ -135,7 +138,7 @@ We can now proceed to define the lemmas.
 \begin{proof}
 	$s'$ is related from some $s \in \mathit{State}$ by $\llbracket f \rrbracket$, so
 		$$\mathit{volatile(s')} \doteq \mathit{volatile(s)} \doteq \mathit{stable(s')}$$
-	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermideate state $s'_i$ such that 
+	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermideate state $s'_i$ such that
 		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \doteq stable(s'_i)$$
 	finally, by $\llbracket r \rrbracket$ we know that $\mathit{stable(s'_i) \doteq volatile(s'')}$, thus we have
 		$$\mathit{volatile(s') \doteq stable(s') \doteq stable(s'_i) \doteq volatile(s'')}$$
@@ -143,9 +146,9 @@ We can now proceed to define the lemmas.
 
 \begin{lemma} \label{lemma-2-2}
 \begin{multline*}
-      \forall s, s', s'', s''' \in \mathit{State} \ldotp \\ 
+      \forall s, s', s'', s''' \in \mathit{State} \ldotp \\
       s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket s' \land
-	  s' \llbracket \mathit{w\ast} \rrbracket^{P*} s'' \land 
+	  s' \llbracket \mathit{w\ast} \rrbracket^{P*} s'' \land
 	  s'' \llbracket f^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^{P*} s'''\\ \implies \mathit{volatile(s')} \doteq \mathit{volatile(s''')} \lor \mathit{volatile(s'')} \doteq \mathit{volatile(s''')}
 \end{multline*}
 \end{lemma}
@@ -164,6 +167,21 @@ We can now proceed to define the lemmas.
 	\end{align*}
 \end{lemma}
 \begin{proof}
+	By $\mathit{ExistsSpec}$, there exists $t' \in State$, such that $t \llbracket \mathit{ef} \rrbracket t'$\\
+	The lemma can be sketched as follows
+	\begin{figure} [h] \centering
+\begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
+  {
+     s & s' \\
+     t & \exists t' \\};
+  \path[-stealth]
+	(m-1-1) edge [dashed, -] node [left] {$\mathit{AR}$} (m-2-1)
+			edge node [below] {$\llbracket \mathit{ef} \rrbracket^{P*}$} (m-1-2)
+	(m-2-1) edge node [below] {$\llbracket \mathit{ef} \rrbracket^*$} (m-2-2)
+	(m-1-2) edge [dashed, -] node [right] {$\mathit{AR}$} (m-2-2);
+\end{tikzpicture}
+	\end{figure}
 \end{proof}
 
 \section{Proof of theorem}
@@ -194,7 +212,7 @@ Similar to lemmas, we separate the theorem into two parts, and alter it slightly
 %%\end{definition}
 %%
 %%\begin{lemma} \label{my_lem}
-%%	If something has a label, then we can refer to it, without knowing what number it is 
+%%	If something has a label, then we can refer to it, without knowing what number it is
 %%\end{lemma}
 %%
 %%\begin{proof}
