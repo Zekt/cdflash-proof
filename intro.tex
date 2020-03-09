@@ -67,7 +67,7 @@ $\mathit{State}$ is the type of states in the operational specification, which i
 
 For states in the actual program, the meaning of $\mathit{RawState^P}$ is also proof irrelevant. $\mathit{State^P}$ is the type of states in the program we care \---- states that satisfies Representation Invariance or Crash Invariance. $\mathit{Fragment}$ is a list of $\mathit{Action}$.
 
-And we need functions to represent reading from states:
+And we need functions to represent actions of reading from states:
 \begin{align*}
 	read &: \mathit{RawState^P} \to (\mathit{Addr} \to \mathit{Data})\\
 	volatile &: \mathit{State} \to (\mathit{Addr} \to \mathit{Data})\\
@@ -103,62 +103,72 @@ Important predicates are defined as follows:
 	\mathit{CR(rs : RawState^P, s : State)} &: \text{$\mathit{rs}$ and $s$ satisfies Crash Relation.} \\
 \end{align*}
 
-Lemmas that are trivial or have been proved with the theorem prover can be assumed here:
+Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
 	\mathit{runSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
-	\mathit{ObsEquiv} &: \forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp\\
-	 &\qquad \qquad \qquad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)}\\
-	\mathit{init} &: \forall \mathit{rs} \in \mathit{RawState^P} \ldotp\\ 
-	 &\qquad \qquad \qquad \mathit{Init(rs) \implies \exists s \in \mathit{State} \ldotp RI(rs) \land AR(rs, s)}
+	\mathit{Observational Equivalence} &: \forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp\\
+	 & \quad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)}\\
+	\mathit{initialisation} &: \forall \mathit{rs} \in \mathit{RawState^P} \ldotp\\ 
+	 &\quad \mathit{Init(rs) \implies \exists s \in State \ldotp RI(rs) \land AR(rs, s)}\\
+	 \mathit{StateCorrectness} &: \forall s, s' \in \mathit{RawState^P},\\ 
+	...	 &\quad \mathit{ac} \in \{w, f\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land RI(s) \implies RI(s')}\\
+	...	 &\quad \mathit{ac} \in \{w^c, f^c\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land RI(s) \implies CI(s')}\\
+	...	 &\quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land CI(s) \implies RI(s')}\\
+	...	 &\quad \mathit{ac} \in \{r^c\} \ldotp \mathit{s \llbracket ac \rrbracket s' \land CI(s) \implies CI(s')}\\
+	RelationCorrectness &: \mathit{\forall s, s' \in State^P, t, t' \in State,}\\
+	...	& \quad \mathit{ac} \in \{w, f\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land AR(s, t) \implies AR(s', t')}\\
+	...	& \quad \mathit{ac} \in \{w^c, f^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land AR(s, t) \implies CR(s', t')}\\
+	...	& \quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
+	...	& \quad \mathit{ac} \in \{r^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land CR(s, t) \implies CR(s', t')}\\
 \end{align*}
-We can now proceed to define and prove the theorem.
+We can now proceed to define the lemmas.
 
 
 \subsection{Lemmas}
 
-\begin{lemma}
+\begin{lemma} \label{lemma-2-1}
 \begin{align*}
-	\forall s, s', s'' \in \mathit{State} \ldotp s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket s' \land s' \llbracket \mathit{w\ast} \cdot w^c \cdot \mathit{r^c\ast} \cdot r \rrbracket s'' \\
+	\forall s, s', s'' \in \mathit{State} \ldotp s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket^* s' \land s' \llbracket \mathit{w\ast} \cdot w^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^* s'' \\
 	  \implies \mathit{volatile(s')} \doteq \mathit{volatile(s'')}
 \end{align*}
 \end{lemma}
 \begin{proof}
-	$s'$ is related with some $s \in \mathit{State}$ by $\llbracket f \rrbracket$, so
-	\begin{align*}
-		\mathit{volatile(s')} \doteq \mathit{volatile(s)} \doteq \mathit{stable(s')}
-	\end{align*}
-	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related with, there's an intermideate state $s'_i$ such that 
-	\begin{align*}
-		s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \doteq stable(s'_i)
-	\end{align*}
+	$s'$ is related from some $s \in \mathit{State}$ by $\llbracket f \rrbracket$, so
+		$$\mathit{volatile(s')} \doteq \mathit{volatile(s)} \doteq \mathit{stable(s')}$$
+	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermideate state $s'_i$ such that 
+		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \doteq stable(s'_i)$$
 	finally, by $\llbracket r \rrbracket$ we know that $\mathit{stable(s'_i) \doteq volatile(s'')}$, thus we have
-	\begin{align*}
-		\mathit{volatile(s') \doteq stable(s') \doteq stable(s'_i) \doteq volatile(s'')}
-	\end{align*}
+		$$\mathit{volatile(s') \doteq stable(s') \doteq stable(s'_i) \doteq volatile(s'')}$$
 \end{proof}
 
-\begin{lemma}
-\begin{multline}
+\begin{lemma} \label{lemma-2-2}
+\begin{multline*}
       \forall s, s', s'', s''' \in \mathit{State} \ldotp \\ 
       s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket s' \land
-      s' \llbracket \mathit{w\ast} \rrbracket^P s'' \land 
-      s'' \llbracket f^c \cdot \mathit{r^c\ast} \cdot r \rrbracket s'''\\ \implies \mathit{volatile(s')} \doteq \mathit{volatile(s'')} \lor \mathit{volatile(s')} \doteq \mathit{volatile(s''')}
-\end{multline}
+	  s' \llbracket \mathit{w\ast} \rrbracket^{P*} s'' \land 
+	  s'' \llbracket f^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^{P*} s'''\\ \implies \mathit{volatile(s')} \doteq \mathit{volatile(s''')} \lor \mathit{volatile(s'')} \doteq \mathit{volatile(s''')}
+\end{multline*}
 \end{lemma}
+\begin{proof}
+	We can find two intermideate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \land s''_i \llbracket r^c* \rrbracket^{P*} s''_j \land s''_j \llbracket r \rrbracket^P s'''$$
+	then by doing a case analysis on $s'' \llbracket f^c \rrbracket s''_i$, we know that either $$\mathit{volatile(s'') \doteq stable(s''_i)}$$ or $$\mathit{stable(s'') \doteq stable(s''_i)}$$
+	if $\mathit{volatile(s'') \doteq stable(s''_i)}$, by substituting $s'$ with $s''$ in \ref{lemma-2-1}, we can obtain $$\mathit{volatile(s'') \doteq volatile(s''')}$$
+	if $\mathit{stable(s'') \doteq stable(s''_i)}$, the proof is exactly the same with \ref{lemma-2-1}, thus $$\mathit{volatile(s') \doteq volatile(s''')}$$
+\end{proof}
 
 \begin{lemma}
 	\begin{align*}
 		&\mathit{SR(s, t)} = \mathit{AR(s, t)} \lor \mathit{CR(s, t)}\\
 		&\forall s, s' \in \mathit{State^P}, t \in \mathit{State}, \mathit{ef} \in \mathit{Fragment} \ldotp\\
-		&\qquad \qquad \qquad \mathit{SR(s, t)} \land s \llbracket \mathit{ef} \rrbracket^{P*} s' \implies \exists t' \ldotp t\llbracket \mathit{ef} \rrbracket^* t' \land \mathit{SR(s', t')} \\
+		&\qquad \qquad \qquad s \llbracket \mathit{ef} \rrbracket^{P*} s'  \land \mathit{SR(s, t)} \implies \exists t' \ldotp t\llbracket \mathit{ef} \rrbracket^* t' \land \mathit{SR(s', t')} \\
 	\end{align*}
 \end{lemma}
 \begin{proof}
 \end{proof}
 
-\section{Goal}
+\section{Proof of theorem}
 
-We separate the theorem into two parts, and alter it slightly to make it more consistent with what we have proved in Agda:
+Similar to lemmas, we separate the theorem into two parts, and alter it slightly to make it more consistent with what we have proved in Agda:
 
 \begin{theorem}
 \begin{multline*}
