@@ -86,7 +86,9 @@ Single-step transitions are defined as relations on two states indexed by $\math
 	\llbracket \mathit{Action} \rrbracket^P, \llbracket \mathit{Fragment} \rrbracket^{P*} &: \text{Relation on $\mathit{State^P \times State^P}$.}\\
 \end{align*}
 
-In other words, states $s$, $s'$ satisfies $s \llbracket \mathit{ac} \rrbracket^P s'$ implies $\mathit{RI(s)}$(when $\mathit{ac} \in \{w, f, w^c, f^c\}$) or $\mathit{CI(s)}$(when $\mathit{ac} \in \{r, r^c\}$). For any two states $s$, $s'$ in specification, $s \llbracket \mathit{Action} \rrbracket s'$ if and only if for each $\mathit{Action}$, followings hold:
+In other words, states $s$, $s'$ satisfies $s \llbracket \mathit{ac} \rrbracket^P s'$ implies $\mathit{RI(s)}$(when $\mathit{ac} \in \{w, f, w^c, f^c\}$) or $\mathit{CI(s)}$(when $\mathit{ac} \in \{r, r^c\}$).
+
+For any two states $s$, $s'$ in specification, $s \llbracket \mathit{Action} \rrbracket s'$ if and only if for each $\mathit{Action}$, followings hold:
 \begin{align*}
 	s \llbracket w(addr, data) \rrbracket s' &: \mathit{volatile(s)[addr \mapsto data]} \doteq \mathit{volatile(s')}\\
 	& \ \  \land stable(s) \doteq stable(s')\\
@@ -105,6 +107,8 @@ Important predicates are defined as follows:
 	\mathit{AR(rs : RawState^P, s : State)} &: \text{$\mathit{rs}$ and $s$ satisfies Abstract Relation.} \\
 	\mathit{CR(rs : RawState^P, s : State)} &: \text{$\mathit{rs}$ and $s$ satisfies Crash Relation.} \\
 \end{align*}
+
+Every one of which has its type $\mathit{undefined}$, with reason stated above. 
 
 Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
@@ -125,8 +129,8 @@ Lemmas that are trivial or have been proved with theorem prover can be assumed h
 	...	& \quad \mathit{ac} \in \{r\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
 	...	& \quad \mathit{ac} \in \{r^c\} \ldotp \mathit{s \llbracket ac \rrbracket^P s' \land t \llbracket ac \rrbracket t' \land CR(s, t) \implies CR(s', t')}\\
 \end{align*}
-We can now proceed to define the lemmas.
 
+We can now proceed to define the lemmas.
 
 \subsection{Lemmas}
 
@@ -256,55 +260,6 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
       \implies \mathit{read(s')} \doteq \mathit{read(s''')} \lor \mathit{read(s'')} \doteq \mathit{read(s''')}
 \end{multline*}
 \end{theorem}
-
-%%\subsection{Definitions and theorems}
-%%
-%%Definitions, theorems, lemmas and so on, are 'enviroments' (like documents and lists). They need to begin and end.
-%%
-%%\begin{definition}\label{my_def}
-%%	A \emph{label} allows the user to tell Latex 'remember the numbering of that definition/theorem/equation'
-%%\end{definition}
-%%
-%%\begin{lemma} \label{my_lem}
-%%	If something has a label, then we can refer to it, without knowing what number it is
-%%\end{lemma}
-%%
-%%\begin{proof}
-%%	For example, by calling up Definition \ref{my_def}. This works even if the ordering of things move.
-%%	Note that the end of proof square box is already there
-%%\end{proof}
-%%
-%%\begin{theorem}
-%%	And a final theorem
-%%\end{theorem}
-%%
-%%\begin{proof}
-%%	Combining Definition \ref{my_def} with Lemman \ref{my_lem} we get Equation \ref{my_eqn} below.
-%%\end{proof}
-%%
-%%\section{Including maths}
-%%
-%%Some maths, like $\varepsilon>0$ or $a_{23}=\alpha^3$, is written in-line. More important or complex maths is displayed on its own line.
-%%For example, $$ \lim_{x\to\infty}f(x)=\frac{\pi}{4}.$$
-%%
-%%Sometimes you need multiple lines of maths to line up nicely:
-%%
-%%\begin{align*}
-%%f(x+y)&=(x+y,-2(x+y))\\
-%%&=(x,-2x)+(y,-2y)\\
-%%&=f(x)+f(y),
-%%\end{align*}
-%%
-%%and sometimes you want to number lines in an equation
-%%
-%%\begin{align}
-%%A^{T} & =\begin{pmatrix}1 & 2\\
-%%3 & 4
-%%\end{pmatrix}^{T}\\
-%%\label{my_eqn}  & =\begin{pmatrix}1 & 3\\
-%%2 & 4
-%%\end{pmatrix}
-%%\end{align}
 
 
 \end{document}
