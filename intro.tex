@@ -109,7 +109,21 @@ For each of $\mathit{SpecState}$, $\mathit{ProgState}$ and $\mathit{ProgState^\d
 	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^P \right)^i \quad
 	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^\dagger \right)^i \\
 \end{align*}
-Important predicates are defined as follows:
+
+Notice that any relation $r^i$ in closure $\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket \right)^i$ that belongs to $i$-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$ is a composition of a single-step relation $\llbracket a_1 \rrbracket$ and a relation $r^{i-1}$ which belongs to (${i-1}$)-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$:
+$$r^i = \llbracket a_1 \rrbracket \circ r^{i-1}$$
+
+By inductive decomposition, we can find a sequence of actions $a_i, a_{i-1}, a_{i-2} \dots a_1$, which maps to an unique fragment $\mathit{ef} = a_i \cdot a_{i-1} \cdot a_{i-2} \dots a_1$, thus each transitive closure of single-step transitions, can be replaced with a family of relations indexed by $\mathit {Fragment}$:
+\begin{align*}
+	\{ \llbracket \mathit{ef} \rrbracket^* \}_\mathit{ef \in Fragment} &= 
+	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket \right)^i \quad\\
+	\{ \llbracket \mathit{ef} \rrbracket^{P*} \}_\mathit{ef \in Fragment} &= 
+	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^P \right)^i \quad\\
+	\{ \llbracket \mathit{ef} \rrbracket^{\dagger*} \}_\mathit{ef \in Fragment} &= 
+	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^\dagger \right)^i
+\end{align*}
+
+Important predicates and their meanings are given as follows:
 \begin{align*}
 	\mathit{Init^P(rs : ProgState)} &: \text{$\mathit{rs}$ is an initial state.}\\
 	\mathit{RI(rs : ProgState)} &: \text{$\mathit{rs}$ satisfies Representation Invariance.} \\
