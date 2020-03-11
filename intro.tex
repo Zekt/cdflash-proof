@@ -80,7 +80,7 @@ And we need functions to represent actions of reading from states:
 
 \newpage
 
-Single-step transitions are defined as relations on pairs of states indexed by $\mathit{Action}$, and multi-step transitions as their reflextive transitive closures (indexed by $\mathit{Fragmant}$). We assume a familiy of relations is given:
+Single-step transitions are defined as relations on pairs of states indexed by $\mathit{Action}$, and multi-step transitions as their reflexive transitive closures (indexed by $\mathit{Fragmant}$). We assume a family of relations is given:
 \begin{align*}
 	\{ \llbracket a \rrbracket^P \subseteq \mathit{ProgState \times ProgState} \}_\mathit{a \in Action}
 \end{align*}
@@ -167,7 +167,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 \begin{proof}
 	$s'$ is related from some $s \in \mathit{SpecState}$ by $\llbracket f \rrbracket$, so
 		$$\mathit{volatile(s')} \equiv \mathit{volatile(s)} \equiv \mathit{stable(s')}$$
-	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermidiate state $s'_i$ such that
+	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermediate state $s'_i$ such that
 		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \equiv stable(s'_i)$$
 	finally, by $\llbracket r \rrbracket$ we know that $\mathit{stable(s'_i) \equiv volatile(s'')}$, thus we have
 		$$\mathit{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
@@ -182,7 +182,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 \end{multline*}
 \end{lemma}
 \begin{proof}
-	We can find two intermidiate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \land s''_i \llbracket r^c* \rrbracket^{P*} s''_j \land s''_j \llbracket r \rrbracket^P s'''$$
+	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \land s''_i \llbracket r^c* \rrbracket^{P*} s''_j \land s''_j \llbracket r \rrbracket^P s'''$$
 	then by doing a case analysis on $s'' \llbracket f^c \rrbracket s''_i$, we know that either $$\mathit{volatile(s'') \equiv stable(s''_i)}$$ or $$\mathit{stable(s'') \equiv stable(s''_i)}$$
 	if $\mathit{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
 	\cref{lemma-2-1}, we can obtain $$\mathit{volatile(s'') \equiv volatile(s''')}$$
@@ -224,7 +224,7 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 \end{multline*}
 \end{theorem}
 \begin{proof}
-	From $\mathit{initialisation}$ and repetively applying \cref{lemma-1} to the first relation, we have $\mathit{AR(s, t)}$ and $\mathit{AR(s', t')}$.
+	From $\mathit{initialisation}$ and repeatedly applying \cref{lemma-1} to the first relation, we have $\mathit{AR(s, t)}$ and $\mathit{AR(s', t')}$.
 	The theorem can then be sketched as follows:
 	\begin{figure} [h] \centering
 		\begin{tikzpicture}
@@ -242,7 +242,7 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 
 		\end{tikzpicture}
 	\end{figure}\\
-	We can find some intermidiate states $s'_1$, $s'_2$, $s'_3$, and by applying \cref{lemma-1} repetively to obtain
+	We can find some intermediate states $s'_1$, $s'_2$, $s'_3$, and by applying \cref{lemma-1} repeatedly to obtain
 	\begin{figure} [h] \centering
 		\begin{tikzpicture}
 			\matrix (m) [matrix of math nodes, row sep=3em, column sep=4em, minimum width=2em]
