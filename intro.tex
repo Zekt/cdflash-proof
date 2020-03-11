@@ -53,22 +53,23 @@
 
 \section{Datatypes}
 
-To define the theorem, following datatypes(definitions) are required:
+To define the theorem, following datatypes(definitions) are required,
+we assume that three sets are given,  
+$$\mathit{Addr}, \mathit{Data}, \mathit{ProgState}$$
+where $\mathit{Addr}$ is the set of addresses, $\mathit{Data}$ is of all possible values , $\mathit{RawState^P}$
 
 \begin{align*}
 %\noalign{\center{\small{State of Spec, a pair of two mappings from Address to Data, representing abstracted volatile and stable states respectively.}}}
-	\mathit{Addr}, \mathit{Data} &: \mathit{undefined}\\
-	\mathit{State} &: (Addr \to Data) \times (Addr \to Data)\\
+	\mathit{SpecState} &= (Addr \to Data) \times (Addr \to Data)\\
 %\noalign{\center{\small{State of Prog, we don't have to know the details.}}}
-	\mathit{RawState^P} &: \mathit{undefined}\\
-	\mathit{State^P} &: \{ \mathit{rs} \in \mathit{RawState^P} | \mathit{RI(rs) \lor CI(rs)} \}\\
-	\mathit{Action} &: \{w(Addr, Data), f, r, w^c, f^c, r^c\}\\
-	\mathit{Fragment} &: [\mathit{Action}]\\
+	\mathit{ProgState^{\dagger}} &= \{\, \mathit{rs} \in \mathit{RawState^P} \mid \mathit{RI(rs) \lor CI(rs)} \,\}\\
+	\mathit{Action} &= \{\,\mathsf w_{addr, data} \mid \,\}, \mathsf f,\mathsf r,\mathsf {w^c}_{addr, data},\mathsf {f^c},\mathsf {r^c}\,\}\\
+	\mathit{Fragment} &= \mathit{Action^*}\\
 \end{align*}
 
 $\mathit{State}$ is the type of states in the operational specification, which is a pair of mappings from $Addr$ to $Data$, the types of which are both $\mathit{undefined}$. these two mappings represent the volatile and stable memory state of the specification.  By $\mathit{undefined}$ we mean that since the actual meanings of some types are proof irrelevant, they are abstracted as module parameters in Agda, and can be given concrete meanings if needed in further works.
 
-For states in the actual program, the meaning of $\mathit{RawState^P}$ is also proof irrelevant. $\mathit{State^P}$ is the type of states in the program we care \---- states that satisfies Representation Invariance or Crash Invariance. $\mathit{Fragment}$ is a list of $\mathit{Action}$.
+For states in the actual program, the meaning of $\mathit{RawState^P}$ is also proof irrelevant. $\mathit{State^P}$ is the type of states in the program we care \---- states that satisfies Representation Invariance or Crash Invariance. $\mathit{Fragment}$ is the set of sequences of $\mathit{Action}$.
 
 And we need functions to represent actions of reading from states:
 \begin{align*}
@@ -90,13 +91,13 @@ In other words, states $s$, $s'$ satisfies $s \llbracket \mathit{ac} \rrbracket^
 
 For any two states $s$, $s'$ in specification, $s \llbracket \mathit{Action} \rrbracket s'$ if and only if for each $\mathit{Action}$, followings hold:
 \begin{align*}
-	s \llbracket w(addr, data) \rrbracket s' &: \mathit{volatile(s)[addr \mapsto data]} \doteq \mathit{volatile(s')}\\
-	& \ \  \land stable(s) \doteq stable(s')\\
-	s \llbracket f \rrbracket s' &: \mathit{volatile(s)} \doteq \mathit{volatile(s')} \land \mathit{volatile(s)} \doteq \mathit{stable(s')}\\
-	s \llbracket r \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{volatile(s')} \land \mathit{stable(s)} \doteq \mathit{stable(s')}\\
-	s \llbracket w^c \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{stable(s')}\\
-	s \llbracket f^c \rrbracket s' &: \mathit{volatile(s)} \doteq \mathit{stable(s')} \lor \mathit{stable(s)} \doteq \mathit{stable(s')}\\
-	s \llbracket r^c \rrbracket s' &: \mathit{stable(s)} \doteq \mathit{stable(s')}
+	s \llbracket w(addr, data) \rrbracket s' :{}& \mathit{volatile(s)[addr \mapsto data]} \doteq \mathit{volatile(s')}\\
+	& \land stable(s) \doteq stable(s')\\
+	s \llbracket f \rrbracket s' :{}& \mathit{volatile(s)} \doteq \mathit{volatile(s')} \land \mathit{volatile(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket r \rrbracket s' :{}& \mathit{stable(s)} \doteq \mathit{volatile(s')} \land \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket w^c \rrbracket s' :{}& \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket f^c \rrbracket s' :{}& \mathit{volatile(s)} \doteq \mathit{stable(s')} \lor \mathit{stable(s)} \doteq \mathit{stable(s')}\\
+	s \llbracket r^c \rrbracket s' :{}& \mathit{stable(s)} \doteq \mathit{stable(s')}
 \end{align*}
 
 Important predicates are defined as follows:
@@ -112,9 +113,9 @@ Every one of which has its type $\mathit{undefined}$, with reason stated above.
 
 Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
-	\mathit{ExistsSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
-	\mathit{Observational Equivalence} &: \forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp\\
-	 & \quad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)}\\
+	%%\mathit{ExistsSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
+	\forall \mathit{rs} \in \mathit{RawState^P},s \in \mathit{State} \ldotp \\
+	 & \quad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \doteq \mathit{volatile(t)} \tag{Observational Equivalence}\\
 	\mathit{initialisation} &: \forall \mathit{rs} \in \mathit{State^P} \ldotp\\
 	 &\quad \mathit{Init(rs) \implies \exists s \in State \ldotp RI(rs) \land AR(rs, s)}\\
 	\mathit{PerOperationCorrectness} &:\\
@@ -179,8 +180,8 @@ We can now proceed to define the lemmas.
 \begin{tikzpicture}
   \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
   {
-     s & s' \\
-     t & \exists t' \\};
+	  s & \vphantom{s}\smash{s'} \\
+	 t & \vphantom{t}\smash{\exists t'} \\};
   \path[-stealth]
 	(m-1-1) edge [dashed, -] node [left] {$\mathit{SR}$} (m-2-1)
 			edge node [below] {$\llbracket \mathit{ef} \rrbracket^{P*}$} (m-1-2)
