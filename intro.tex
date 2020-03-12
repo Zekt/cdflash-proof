@@ -1,6 +1,6 @@
 \documentclass[a4paper,11pt]{article}
 
-\usepackage{amsmath}
+\usepackage[leqno]{amsmath}
 \usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{graphicx}
@@ -113,7 +113,7 @@ For each of $\mathit{SpecState}$, $\mathit{ProgState}$ and $\mathit{ProgState^\d
 Notice that any relation $r^i$ in closure $\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket \right)^i$ that belongs to $i$-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$ is a composition of a single-step relation $\llbracket a_1 \rrbracket$ and a relation $r^{i-1}$ which belongs to (${i-1}$)-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$:
 $$r^i = \llbracket a_1 \rrbracket \circ r^{i-1}$$
 
-By inductive decomposition, we can find a sequence of actions $a_i, a_{i-1}, a_{i-2} \dots a_1$, which maps to an unique fragment $\mathit{ef} = a_i \cdot a_{i-1} \cdot a_{i-2} \dots a_1$, thus each transitive closure of single-step transitions, can be replaced with a family of relations indexed by $\mathit {Fragment}$:
+By recursive decomposition, we can find a sequence of actions $a_i, a_{i-1}, a_{i-2} \dots a_1$, which maps to an unique fragment $\mathit{ef} = a_i \cdot a_{i-1} \cdot a_{i-2} \dots a_1$, thus each transitive closure of single-step transitions can be replaced with a family of relations indexed by $\mathit {Fragment}$:
 \begin{align*}
 	\{ \llbracket \mathit{ef} \rrbracket^* \}_\mathit{ef \in Fragment} &= 
 	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket \right)^i \quad\\
@@ -132,26 +132,23 @@ Important predicates and their meanings are given as follows:
 	\mathit{CR(rs : ProgState, s : SpecState)} &: \text{$\mathit{rs}$ and $s$ satisfies Crash Relation.} \\
 \end{align*}
 
-Every one of which has its type $\mathit{undefined}$, with reason stated above. 
-
 Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
 	%%\mathit{ExistsSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
-	\forall \mathit{rs} \in \mathit{ProgState},s \in \mathit{SpecState} \ldotp \\
-	 & \quad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \equiv \mathit{volatile(t)} \tag{Observational Equivalence}\\
-	\mathit{initialisation} &: \forall \mathit{rs} \in \mathit{ProgState^\dagger} \ldotp\\
-	 &\quad \mathit{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \land AR(rs, s)}\\
-	\mathit{PerOperationCorrectness} &:\\
-	 \mathit{StateInvariance} &: \forall s, s' \in \mathit{ProgState^\dagger},\\
-	...	 &\quad a \in \{w, f\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies RI(s')}\\
-	...	 &\quad a \in \{w^c, f^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies CI(s')}\\
-	...	 &\quad a \in \{r\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies RI(s')}\\
-	...	 &\quad a \in \{r^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies CI(s')}\\
-	RelationInvariance &: \mathit{\forall s, s' \in ProgState^\dagger, t, t' \in SpecState,}\\
-	...	& \quad a \in \{w, f\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies AR(s', t')}\\
-	...	& \quad a \in \{w^c, f^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies CR(s', t')}\\
-	...	& \quad a \in \{r\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
-	...	& \quad a \in \{r^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies CR(s', t')}\\
+	\tag{Observational Equivalence} & \forall \mathit{rs} \in \mathit{ProgState},s \in \mathit{SpecState} \ldotp \\
+	& \qquad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \equiv \mathit{volatile(t)} \\
+	\tag{Initialisation} &\forall \mathit{rs} \in \mathit{ProgState^\dagger} \ldotp\\
+	&\qquad \mathit{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \land AR(rs, s)}\\
+	\tag{Per Operation Correctness} & \forall s, s' \in \mathit{ProgState^\dagger},\\
+	&...	 \quad a \in \{w, f\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies RI(s')}\\
+	&...	 \quad a \in \{w^c, f^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies CI(s')}\\
+	&...	 \quad a \in \{r\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies RI(s')}\\
+	&...	 \quad a \in \{r^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies CI(s')}\\
+	&\mathit{\forall s, s' \in ProgState^\dagger, t, t' \in SpecState,}\\
+	&...	 \quad a \in \{w, f\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies AR(s', t')}\\
+	&...	 \quad a \in \{w^c, f^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies CR(s', t')}\\
+	&...	 \quad a \in \{r\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
+	&...	 \quad a \in \{r^c\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies CR(s', t')}\\
 \end{align*}
 
 We can now proceed to state and prove the lemmas and the theorem.
@@ -159,15 +156,15 @@ We can now proceed to state and prove the lemmas and the theorem.
 \subsection{Lemmas}
 
 \begin{lemma}\label{lemma-2-1}
-\begin{align*}
+\begin{multline*}
 	\forall s, s', s'' \in \mathit{SpecState} \ldotp s \llbracket \mathit{(w \lor f)\ast} \cdot f \rrbracket^* s' \land s' \llbracket \mathit{w\ast} \cdot w^c \cdot \mathit{r^c\ast} \cdot r \rrbracket^* s'' \\
 	  \implies \mathit{volatile(s')} \equiv \mathit{volatile(s'')}
-\end{align*}
+\end{multline*}
 \end{lemma}
 \begin{proof}
 	$s'$ is related from some $s \in \mathit{SpecState}$ by $\llbracket f \rrbracket$, so
 		$$\mathit{volatile(s')} \equiv \mathit{volatile(s)} \equiv \mathit{stable(s')}$$
-	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has it's stable unchanged from the state it's related from, there's an intermediate state $s'_i$ such that
+	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has its stable unchanged from the state it's related from, there is an intermediate state $s'_i$ such that
 		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \equiv stable(s'_i)$$
 	finally, by $\llbracket r \rrbracket$ we know that $\mathit{stable(s'_i) \equiv volatile(s'')}$, thus we have
 		$$\mathit{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
@@ -197,7 +194,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 	\end{align*}
 \end{lemma}
 \begin{proof}
-	By $\mathit{ExistsSpec}$, there exists $t' \in SpecState$, such that $t \llbracket \mathit{ef} \rrbracket t'$, and by Per Operation Correctness, $s \llbracket \mathit{ef} \rrbracket^P s'$, $t \llbracket \mathit{ef} \rrbracket t'$ and $\mathit{AR(s, t)}$ or $\mathit{CR(s, t)}$ implies either $\mathit{AR(s', t')}$ $\mathit{CR(s', t')}$. \\
+	By $\mathit{ExistsSpec}$, there exists $t' \in SpecState$, such that $t \llbracket \mathit{ef} \rrbracket t'$, and by Per Operation Correctness, $s \llbracket \mathit{ef} \rrbracket^P s'$, $t \llbracket \mathit{ef} \rrbracket t'$ and $\mathit{AR(s, t)} \lor \mathit{CR(s, t)}$ implies either $\mathit{AR(s', t')}$ or $\mathit{CR(s', t')}$. \\
 	The lemma can be sketched as follows
 	\begin{figure} [h] \centering
 \begin{tikzpicture}
@@ -229,8 +226,8 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 	\begin{figure} [h] \centering
 		\begin{tikzpicture}
 			\matrix (m) [matrix of math nodes, row sep=3em, column sep=5em, minimum width=2em]
-			{ s & s' & s'' \\
-			  t & \exists t' & \exists t'' \\};
+			{ s & \vphantom{s}\smash{s'} & \vphantom{s}\smash{s''} \\
+			  t & \vphantom{t}\smash{\exists t'} & \vphantom{t}\smash{\exists t''} \\};
 			\path[-stealth]
 			(m-1-1) edge [dashed, -] node [left] {$\mathit{AR}$} (m-2-1)
 					edge node [below] {\tiny{$\llbracket \mathit{(w \lor f)*} \cdot f \rrbracket^{P*}$}} (m-1-2)
@@ -246,8 +243,8 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 	\begin{figure} [h] \centering
 		\begin{tikzpicture}
 			\matrix (m) [matrix of math nodes, row sep=3em, column sep=4em, minimum width=2em]
-			{ s & s' & s'_1 & s'_2 & s'_3 & s'' \\
-			  t & \exists t' & \exists t'_1 & \exists t'_2 & \exists t'_3 & \exists t'' \\};
+			{ s & \vphantom{s}\smash{s'} & \vphantom{s}\smash{s'_1} & \vphantom{s}\smash{s'_2} & \vphantom{s}\smash{s'_3} & \vphantom{s}\smash{s''} \\
+			  t & \vphantom{t}\smash{\exists t'} & \vphantom{t}\smash{\exists t'_1} & \vphantom{t}\smash{\exists t'_2} & \vphantom{t}\smash{\exists t'_3} & \vphantom{t}\smash{\exists t''} \\};
 			\path[-stealth]
 			(m-1-1) edge [dashed, -] node [left] {$\mathit{AR}$} (m-2-1)
 					edge node [below] {\tiny{$\llbracket \mathit{(w \lor f)*} \cdot f \rrbracket^{P*}$}} (m-1-2)
