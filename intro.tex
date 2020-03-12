@@ -1,5 +1,7 @@
-\documentclass[a4paper,11pt]{article}
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix2019_v3}
 
+\usepackage{microtype}
 \usepackage[leqno]{amsmath}
 \usepackage{amssymb}
 \usepackage{amsthm}
@@ -10,7 +12,11 @@
 \usepackage{tikz}
 \usepackage{cleveref}
 \usetikzlibrary{matrix}
+%\usepackage{hyperref}
 %you can add more packages using the same code above
+
+\usepackage[color=yellow,textsize=footnotesize]{todonotes}
+\setlength{\marginparwidth}{1.5cm}
 
 %------------------
 
@@ -37,19 +43,58 @@
 %Everything before begin document is called the pre-amble and sets out how the document will look
 %It is recommended you don't touch the pre-amble until you are familiar with LateX
 
+\newcommand{\Spec}{\ensuremath{\mathbb S}}
+\newcommand{\Prog}{\ensuremath{\mathbb P}}
+\newcommand{\ProgInv}{\ensuremath{\mathbb P^\dagger}}
+
 \begin{document}
 
-\title{Crash-Deterministic Property in Agda}
+\title{Crash-Determinacy in Agda}
 %\author{Lin Tzu Chi}
 %\date{}
 \maketitle
 
 \begin{abstract}
-	We have proved crash-deterministic properties in Agda.
+We have proved crash-deterministic properties in Agda.
 \end{abstract}
 
 %The following code is not run because of the percentage sign, but you might find it useful for future work
 % \tableofcontents
+
+\section{Overall Structure}
+
+We will first define an abstract (and simpler) transition system~\Spec\ that acts as a specification of the actual program transition system~\Prog.
+Crash-determinacy will be established on~\Spec\ instead, and by making \Spec\ simulate~\Prog\ (a notion which we will define below), every well-formed fragment in~\Prog\ will correspond to one in~\Spec\ and be crash-deterministic.%
+\todo{crash-deterministic fragment?}\
+The overall strategy for carrying out the proof is to use an SMT solver wherever possible, and verify the rest with a proof assistant, in this case Agda.
+More specifically, the solver establishes the preservation of invariants in~\Prog\ and the simulation of~\Prog\ by~\Spec, and then with Agda we prove that \Spec\ is crash-deterministic, and that crash-determinacy of~\Spec\ does lead to crash-determinacy of~\Prog\ due to the simulation.
+
+Below we will present the part of the proof formalized with Agda.
+The Agda proof%
+\todo{change to ``The majority of the Agda proof'' if eventually we need to prove stuff about the exact definitions of the simulation relations, the invariants, etc}\
+does not depend on the detail of~\Prog, the invariants on program states, and the simulation of~\Prog\ by~\Spec, and these will be formulated as assumptions in \cref{sec:Prog}, where some notations will also be defined.
+We will then define \Spec\ and prove its crash-determinacy in \cref{sec:Spec}.
+Next we will formally define the simulation relation between \Prog~and~\Spec, but instead of considering the entire~\Prog, it suffices to focus on a sub-system~\ProgInv\ of~\Prog\ which considers only the states satisfying the invariants and the transitions that ``respect'' the invariants.
+In \Cref{sec:ProgInv} we will define~\ProgInv\ and prove some of its properties.
+The simulation relation between \ProgInv~and~\Spec, to be defined in \cref{sec:sim}, will be easier to handle (compared to the one between \Prog~and~\Spec), and we will still be able to prove crash-determinacy since the property is only about well-formed fragments,%
+\todo{should probably be defined to start from initial states}\
+which can be shown (in \cref{sec:ProgInv}) to be included in~\ProgInv.
+The proof of crash-determinacy will then be presented in \cref{sec:proof}.
+
+\section{Assumptions about the Program Transition System~\Prog}
+\label{sec:Prog}
+
+\section{The Specification Transition System~\Spec}
+\label{sec:Spec}
+
+\section{The Sub-System~\ProgInv\ with Invariants}
+\label{sec:ProgInv}
+
+\section{Simulation of~\ProgInv\ by~\Spec}
+\label{sec:sim}
+
+\section{Proof of Crash-Determinacy}
+\label{sec:proof}
 
 \section{Datatypes}
 
@@ -137,7 +182,7 @@ Lemmas that are trivial or have been proved with theorem prover can be assumed h
 	%%\mathit{ExistsSpec} &: \forall t \in \mathit{State}, a \in \mathit{Action} \ldotp \exists t' \in \mathit{State} \ldotp t \llbracket a \rrbracket t'\\
 	\tag{Observational Equivalence} & \forall \mathit{rs} \in \mathit{ProgState},s \in \mathit{SpecState} \ldotp \\
 	& \qquad \mathit{RI(rs)} \land \mathit{AR(rs, s)} \implies \mathit{read(rs)} \equiv \mathit{volatile(t)} \\
-	\tag{Initialisation} &\forall \mathit{rs} \in \mathit{ProgState^\dagger} \ldotp\\
+	\tag{Initialization}\label{Initialization} &\forall \mathit{rs} \in \mathit{ProgState^\dagger} \ldotp\\
 	&\qquad \mathit{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \land AR(rs, s)}\\
 	\tag{Per Operation Correctness} & \forall s, s' \in \mathit{ProgState^\dagger},\\
 	&...	 \quad a \in \{w, f\} \ldotp \mathit{s \llbracket a \rrbracket^P s' \implies RI(s')}\\
@@ -152,6 +197,7 @@ Lemmas that are trivial or have been proved with theorem prover can be assumed h
 \end{align*}
 
 We can now proceed to state and prove the lemmas and the theorem.
+%\cref{Initialization}
 
 \subsection{Lemmas}
 
