@@ -14,7 +14,7 @@
 \usepackage{tikz}
 \usepackage{cleveref}
 \usetikzlibrary{matrix}
-%\usepackage{hyperref}
+\usepackage{hyperref}
 %you can add more packages using the same code above
 
 \usepackage[color=yellow,textsize=scriptsize]{todonotes}
@@ -45,11 +45,11 @@
 %Everything before begin document is called the pre-amble and sets out how the document will look
 %It is recommended you don't touch the pre-amble until you are familiar with LateX
 
-\newcommand{\defeq}{\triangleq}
+\newcommand{\defeq}{{}\triangleq{}}
 \newcommand{\conj}{\mathrel\land}
 \newcommand{\disj}{\mathrel\lor}
 
-\newcommand{\awa}[2]{\mathrlap{#2}\hphantom{#1}} % as wide as
+\newcommand{\awa}[2]{\hphantom{#1}\mathclap{#2}\hphantom{#1}} % as wide as
 
 \renewcommand{\i}[1]{\ensuremath{\mathit{#1}}}
 
@@ -63,6 +63,7 @@
 \newcommand{\actr}{\mathsf r}
 \newcommand{\actfc}{\mathsf{f^c}}
 \newcommand{\actrc}{\mathsf{r^c}}
+\newcommand{\hmid}{\hphantom{\mid{}}}
 
 \newcommand{\ttIn}[2]{\xrightarrow{#1}_{#2}}
 \newcommand{\ttsIn}[2]{\xrightarrow{#1}^{\raisebox{-3pt}{\scriptsize\ensuremath{*}}}_{#2}}
@@ -70,6 +71,8 @@
 \newcommand{\ttsP}[1]{\ttsIn{#1}{\Prog}}
 \newcommand{\ttS}[1]{\ttIn{#1}{\Spec}}
 \newcommand{\ttsS}[1]{\ttsIn{#1}{\Spec}}
+\newcommand{\ttPI}[1]{\ttIn{#1}{\ProgInv}}
+\newcommand{\ttsPI}[1]{\ttsIn{#1}{\ProgInv}}
 
 
 \begin{document}
@@ -172,25 +175,41 @@ The transition relation
 $$ {\ttS{}} \subseteq \i{SpecState} \times \i{Action} \times \i{SpecState} $$
 is defined by%
 \todo{revise}
-\begin{align*}
-	\llbracket \mathsf w_{addr, data} \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ &\mid \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s')}
-	\land stable(s) \equiv stable(s') \,\} \\
-	\llbracket \mathsf f \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ & \mid \i{volatile(s)} \equiv \i{volatile(s')} \land \i{volatile(s)} \equiv \i{stable(s')}\,\} \,\} \\
-	\llbracket \mathsf r \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ & \mid\i{stable(s)} \equiv \i{volatile(s')} \land \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\llbracket \mathsf {w^c} \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ & \mid\i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\llbracket \mathsf {f^c} \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ & \mid\i{volatile(s)} \equiv \i{stable(s')} \lor \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\llbracket \mathsf {r^c} \rrbracket ={}& \{\, (s, s') \in SpecState \times SpecState\\ & \mid\i{stable(s)} \equiv \i{stable(s')} \,\}
-\end{align*}
+\begin{alignat*}{3}
+	\ttS{\actw_{\i{addr}, \i{data}}} \defeq{}& \{\, (s, \actw, s')&& \mid stable(s) \equiv stable(s') \\ & \omit \span \span \conj \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s') \,\}}   \\
+	\ttS{\actf} \defeq{}& \{\, (s, \actf, s')&& \mid \i{volatile(s)} \equiv \i{volatile(s')}\\
+	& \quad && \hmid \conj \i{volatile(s)} \equiv \i{stable(s')}\,\} \\
+	\ttS{\actr} \defeq{}& \{\, (s, \actr, s')&& \mid \i{stable(s)} \equiv \i{volatile(s')}\\
+	& \quad && \hmid \conj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\actwc} \defeq{}& \{\, (s, \actwc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\actfc} \defeq{}& \{\, (s, \actfc, s')&& \mid \i{volatile(s)} \equiv \i{stable(s')}\\
+	& \quad && \hmid \disj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\actrc} \defeq{}& \{\, (s, \actrc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\}
+\end{alignat*}
+where $[x \mapsto v]$ is a function of function that remaps an address to a new value
+$$f[x \mapsto v](y) \defeq \begin{cases} v & \text{if } y = x \\ f(x) & \text{otherwise} \end{cases} $$
 
 \section{The Sub-System~\ProgInv\ with Invariants}
 \label{sec:ProgInv}
+\ProgInv\ is a transition system whose states is a subset of \i{ProgState} \---- states that satisfies either representation invariance or crash invariance. 
+$$\i{ProgState^{\dagger}} \defeq{} \{\, s \in \i{ProgState} \mid \i{RI(s) \lor CI(s)} \,\}$$
+Its transition relation 
+$$\ttPI{} \subseteq \i{ProgState^\dagger} \times \i{Action} \times \i{ProgState^\dagger}$$
+which can be easily shown to be a subset of \i{\ttP{}}, is defined by
+\begin{align*}
+	\ttPI{\awa{w}\actw} \defeq{}& \{\, (s, \actw, s') \\
+	&\mid s \ttP{\awa{w}\actw} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}\actf} \defeq{}& \{\, (s, \actf, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actf} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}\actr} \defeq{}& \{\, (s, \actr, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actr} s' \conj \i{CI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}\actwc} \defeq{}& \{\, (s, \actwc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actwc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actfc} \defeq{}& \{\, (s, \actfc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actfc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, \actrc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
+\end{align*}
+
 
 \section{Simulation of~\ProgInv\ by~\Spec}
 \label{sec:sim}
 
-\begin{align*}
-\i{ProgState^{\dagger}} ={} &\{\, \i{rs} \in \i{ProgState} \mid \i{RI(rs) \lor CI(rs)} \,\}
-\end{align*}
 
 
 \section{Proof of Crash-Determinacy}
@@ -199,25 +218,12 @@ is defined by%
 \section{Datatypes}
 
 
-$ProgState^\dagger$ is a subset of $ProgState$ we care \---- states that satisfies either Representation Invariance or Crash Invariance. $Action$ is the set of all possible actions, and $\i{Fragment}$ is of all possible sequences of actions. ($^*$ is Kleene star)
+$Action$ is the set of all possible actions, and $\i{Fragment}$ is of all possible sequences of actions. ($^*$ is Kleene star)
 
 And we need functions to represent actions of reading from states:
 \begin{align*}
 	volatile &: \i{SpecState} \to (\i{Addr} \to \i{Data})\\
 	stable &: \i{SpecState} \to (\i{Addr} \to \i{Data})
-\end{align*}
-
-\newpage
-
-
-transitions on $\i{SpecState}$ and $\i{ProgState^\dagger}$ are defined as families of relations $\{ \llbracket a \rrbracket \}_\i{a \in Action}$ and $\{ \llbracket a \rrbracket^\dagger \}_\i{a \in Action}$, with each relation defined as follows:
-\begin{align*}
-	\llbracket \mathsf w_{addr, data} \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf w \rrbracket^P s' \land \i{RI(s)} \land \i{RI(s')} \,\} \\
-	\llbracket \mathsf f \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf f \rrbracket^P s' \land \i{RI(s)} \land \i{RI(s')} \,\} \\
-	\llbracket \mathsf r \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf r \rrbracket^P s' \land \i{CI(s)} \land \i{RI(s')} \,\} \\
-	\llbracket \mathsf {w^c} \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf {w^c} \rrbracket^P s' \land \i{RI(s)} \land \i{CI(s')} \,\} \\
-	\llbracket \mathsf {f^c} \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf {f^c} \rrbracket^P s' \land \i{RI(s)} \land \i{CI(s')} \,\} \\
-	\llbracket \mathsf {r^c} \rrbracket^\dagger ={}& \{\, (s, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \llbracket \mathsf {r^c} \rrbracket^P s' \land \i{CI(s)} \land \i{CI(s')} \,\} 
 \end{align*}
 
 For each of $\i{SpecState}$, $\i{ProgState}$ and $\i{ProgState^\dagger}$, a multi-step transition is defined as a transitive closure of its single-step transition:
@@ -226,6 +232,9 @@ For each of $\i{SpecState}$, $\i{ProgState}$ and $\i{ProgState^\dagger}$, a mult
 	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^P \right)^i \quad
 	\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket^\dagger \right)^i \\
 \end{align*}
+
+
+transitions on $\i{SpecState}$ and $\i{ProgState^\dagger}$ are defined as families of relations $\{ \llbracket a \rrbracket \}_\i{a \in Action}$ and $\{ \llbracket a \rrbracket^\dagger \}_\i{a \in Action}$, with each relation defined as follows:
 
 Notice that any relation $r^i$ in closure $\bigcup_{i=1}^\infty\left(\bigcup_{a \in Action} \llbracket a \rrbracket \right)^i$ that belongs to $i$-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$ is a composition of a single-step relation $\llbracket a_1 \rrbracket$ and a relation $r^{i-1}$ which belongs to (${i-1}$)-th power of $\bigcup_{a \in Action} \llbracket a \rrbracket$:
 $$r^i = \llbracket a_1 \rrbracket \circ r^{i-1}$$
@@ -253,14 +262,14 @@ Lemmas that are trivial or have been proved with theorem prover can be assumed h
 \begin{align*}
 	%%\i{ExistsSpec} &: \forall t \in \i{State}, a \in \i{Action} \ldotp \exists t' \in \i{State} \ldotp t \llbracket a \rrbracket t'\\
 	\tag{Observational Equivalence} & \forall \i{rs} \in \i{ProgState},s \in \i{SpecState} \ldotp \\
-	& \qquad \i{RI(rs)} \land \i{AR(rs, s)} \implies \i{read(rs)} \equiv \i{volatile(t)} \\
+	& \qquad \i{RI(rs)} \conj \i{AR(rs, s)} \implies \i{read(rs)} \equiv \i{volatile(t)} \\
 	\tag{Initialization}\label{Initialization} &\forall \i{rs} \in \i{ProgState^\dagger} \ldotp\\
-	&\qquad \i{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \land AR(rs, s)}\\
+	&\qquad \i{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \conj AR(rs, s)}\\
 	&\i{\forall s, s' \in ProgState^\dagger, t, t' \in SpecState,}\\
-	&...	 \quad a \in \{w, f\} \ldotp \i{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies AR(s', t')}\\
-	&...	 \quad a \in \{w^c, f^c\} \ldotp \i{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land AR(s, t) \implies CR(s', t')}\\
-	&...	 \quad a \in \{r\} \ldotp \i{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies AR(s', t')}\\
-	&...	 \quad a \in \{r^c\} \ldotp \i{s \llbracket a \rrbracket^P s' \land t \llbracket a \rrbracket t' \land CR(s, t) \implies CR(s', t')}\\
+	&...	 \quad a \in \{w, f\} \ldotp \i{s \llbracket a \rrbracket^P s' \conj t \llbracket a \rrbracket t' \conj AR(s, t) \implies AR(s', t')}\\
+	&...	 \quad a \in \{w^c, f^c\} \ldotp \i{s \llbracket a \rrbracket^P s' \conj t \llbracket a \rrbracket t' \conj AR(s, t) \implies CR(s', t')}\\
+	&...	 \quad a \in \{r\} \ldotp \i{s \llbracket a \rrbracket^P s' \conj t \llbracket a \rrbracket t' \conj CR(s, t) \implies AR(s', t')}\\
+	&...	 \quad a \in \{r^c\} \ldotp \i{s \llbracket a \rrbracket^P s' \conj t \llbracket a \rrbracket t' \conj CR(s, t) \implies CR(s', t')}\\
 \end{align*}
 
 We can now proceed to state and prove the lemmas and the theorem.
@@ -270,7 +279,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 
 \begin{lemma}\label{lemma-2-1}
 \begin{multline*}
-	\forall s, s', s'' \in \i{SpecState} \ldotp s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^* s' \land s' \llbracket \i{w\ast} \cdot w^c \cdot \i{r^c\ast} \cdot r \rrbracket^* s'' \\
+	\forall s, s', s'' \in \i{SpecState} \ldotp s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^* s' \conj s' \llbracket \i{w\ast} \cdot w^c \cdot \i{r^c\ast} \cdot r \rrbracket^* s'' \\
 	  \implies \i{volatile(s')} \equiv \i{volatile(s'')}
 \end{multline*}
 \end{lemma}
@@ -278,7 +287,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 	$s'$ is related from some $s \in \i{SpecState}$ by $\llbracket f \rrbracket$, so
 		$$\i{volatile(s')} \equiv \i{volatile(s)} \equiv \i{stable(s')}$$
 	since any state related by $\llbracket w \rrbracket$, $\llbracket w^c \rrbracket$ or $\llbracket r^c \rrbracket$ has its stable unchanged from the state it's related from, there is an intermediate state $s'_i$ such that
-		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \land s'_i \llbracket r \rrbracket s'' \land stable(s') \equiv stable(s'_i)$$
+		$$s' \llbracket {w*} \cdot w^c \cdot {r^c *} \rrbracket^* s'_i \conj s'_i \llbracket r \rrbracket s'' \conj stable(s') \equiv stable(s'_i)$$
 	finally, by $\llbracket r \rrbracket$ we know that $\i{stable(s'_i) \equiv volatile(s'')}$, thus we have
 		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
 \end{proof}
@@ -286,13 +295,13 @@ We can now proceed to state and prove the lemmas and the theorem.
 \begin{lemma}\label{lemma-2-2}
 \begin{multline*}
       \forall s, s', s'', s''' \in \i{SpecState} \ldotp \\
-      s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket s' \land
-	  s' \llbracket \i{w\ast} \rrbracket^{P*} s'' \land
+      s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket s' \conj
+	  s' \llbracket \i{w\ast} \rrbracket^{P*} s'' \conj
 	  s'' \llbracket f^c \cdot \i{r^c\ast} \cdot r \rrbracket^{P*} s'''\\ \implies \i{volatile(s')} \equiv \i{volatile(s''')} \lor \i{volatile(s'')} \equiv \i{volatile(s''')}
 \end{multline*}
 \end{lemma}
 \begin{proof}
-	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \land s''_i \llbracket r^c* \rrbracket^{P*} s''_j \land s''_j \llbracket r \rrbracket^P s'''$$
+	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \conj s''_i \llbracket r^c* \rrbracket^{P*} s''_j \conj s''_j \llbracket r \rrbracket^P s'''$$
 	then by doing a case analysis on $s'' \llbracket f^c \rrbracket s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
 	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
 	\cref{lemma-2-1}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
@@ -303,7 +312,7 @@ We can now proceed to state and prove the lemmas and the theorem.
 	\begin{align*}
 		&\i{SR(s, t)} = \i{AR(s, t)} \lor \i{CR(s, t)}\\
 		&\forall s, s' \in \i{ProgState^\dagger}, t \in \i{SpecState}, \i{ef} \in \i{Fragment} \ldotp\\
-		&\qquad \qquad \qquad s \llbracket \i{ef} \rrbracket^{P*} s'  \land \i{SR(s, t)} \implies \exists t' \ldotp t\llbracket \i{ef} \rrbracket^* t' \land \i{SR(s', t')} \\
+		&\qquad \qquad \qquad s \llbracket \i{ef} \rrbracket^{P*} s'  \conj \i{SR(s, t)} \implies \exists t' \ldotp t\llbracket \i{ef} \rrbracket^* t' \conj \i{SR(s', t')} \\
 	\end{align*}
 \end{lemma}
 \begin{proof}
@@ -330,7 +339,7 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 
 \begin{theorem}
 \begin{multline*}
-      \forall s, s', s'' \in \i{ProgState^\dagger} \ldotp\\\i{Init^P(s)} \land s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^P s' \land s' \llbracket \i{w\ast} \cdot w^c \cdot \i{r^c\ast} \cdot r \rrbracket^P s'' \\ \implies \i{read(s')} \equiv \i{read(s'')}
+      \forall s, s', s'' \in \i{ProgState^\dagger} \ldotp\\\i{Init^P(s)} \conj s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^P s' \conj s' \llbracket \i{w\ast} \cdot w^c \cdot \i{r^c\ast} \cdot r \rrbracket^P s'' \\ \implies \i{read(s')} \equiv \i{read(s'')}
 \end{multline*}
 \end{theorem}
 \begin{proof}
@@ -388,8 +397,8 @@ Similarly to lemmas, we separate the theorem into two parts, and alter it slight
 
 \begin{theorem}
 \begin{multline*}
-      \forall s, s', s'', s''' \in \i{ProgState^\dagger} \ldotp\\\i{Init^P(s)} \land s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^P s' \land
-      s' \llbracket \i{w\ast} \rrbracket^P s'' \land
+      \forall s, s', s'', s''' \in \i{ProgState^\dagger} \ldotp\\\i{Init^P(s)} \conj s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket^P s' \conj
+      s' \llbracket \i{w\ast} \rrbracket^P s'' \conj
       s'' \llbracket f^c \cdot \i{r^c\ast} \cdot r \rrbracket^P s'''\\
       \implies \i{read(s')} \equiv \i{read(s''')} \lor \i{read(s'')} \equiv \i{read(s''')}
 \end{multline*}
