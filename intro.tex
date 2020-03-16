@@ -29,13 +29,13 @@
 %\setlength{\textwidth}{6.5in}
 
 %-------------------
+\theoremstyle{definition}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{corollary}[theorem]{Corollary}
 \newtheorem{conjecture}[theorem]{Conjecture}
 
-\theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{assumption}[theorem]{Assumption}
 \newtheorem*{example}{Example}
@@ -66,7 +66,9 @@
 \newcommand{\hmid}{\hphantom{\mid{}}}
 
 \newcommand{\ttIn}[2]{\xrightarrow{#1}_{#2}}
-\newcommand{\ttsIn}[2]{\xrightarrow{#1}^{\raisebox{-3pt}{\scriptsize\ensuremath{*}}}_{#2}}
+%%\newcommand{\ttsIn}[2]{\xrightarrow{#1}^{\raisebox{-7pt}{\scriptsize\ensuremath{*}}}_{#2}}
+\newcommand{\dxrightarrow}[1]{\xrightarrow{#1}\mathrel{\mkern-14mu}\rightarrow}
+\newcommand{\ttsIn}[2]{\dxrightarrow{#1}_{#2}}
 \newcommand{\ttP}[1]{\ttIn{#1}{\Prog}}
 \newcommand{\ttsP}[1]{\ttsIn{#1}{\Prog}}
 \newcommand{\ttS}[1]{\ttIn{#1}{\Spec}}
@@ -100,7 +102,7 @@ More specifically, the solver establishes the preservation of invariants in~\Pro
 Below we will present the part of the proof formalized with Agda.
 The Agda proof%
 \todo{change to ``The majority of the Agda proof'' if eventually we need to prove stuff about the exact definitions of \i{AR}, \i{RI}, etc}\
-does not depend on the detail of~\Prog, the invariants on program states, and the simulation of~\Prog\ by~\Spec, and these will be formulated as assumptions in \cref{sec:Prog}, where some notations will also be defined.
+does not depend on the detail of~\Prog\ and the invariants on program states, which will be formulated as assumptions in \cref{sec:Prog}, where some notations will also be defined.
 We will then define \Spec\ and prove its crash-determinacy in \cref{sec:Spec}.
 Next we will formally define the simulation relation between \Prog~and~\Spec, but instead of considering the entire~\Prog, it suffices to focus on a sub-system~\ProgInv\ of~\Prog\ which consists of only the states satisfying the invariants and the transitions ``respecting'' the invariants; in \cref{sec:ProgInv} we will define~\ProgInv\ and prove some of its properties.
 The simulation relation between \ProgInv~and~\Spec, to be defined in \cref{sec:sim}, will be easier to handle (compared to the one between \Prog~and~\Spec), and crash-determinacy of \ProgInv\ is the same as that of \Prog\ since the property is only about well-formed fragments,%
@@ -161,6 +163,21 @@ $$ s_0 \ttsIn{a_1a_2\ldots a_n}{} s_n $$
 Note that a fragment may contain no transitions, in which case the starting and ending states are the same: 
 $$ s_0 \ttsIn{\vphantom{a_n}}{} s_0 $$
 \end{definition}
+Our goal, crash-determinacy on~\Prog, can be stated as follows:
+\begin{theorem}[crash-determinacy on \Prog] \label{theoremP}
+	There are two possible situations when a recovery is needed, crash at write or crash at flush, thus for all $s_0, s', s'', s''' \in \i{ProgState}$, the theorem can be separated into two cases:
+\begin{align*}
+\tag{case-\i{\actwc}}
+	&s_0 \ttsP{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsP{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
+	\implies &\i{read(s')} \equiv \i{read(s'')}
+\\
+\tag{case-\i{\actfc}}
+		&s_0 \ttsP{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsP{\i(actw\ast)} s'' \conj s'' \ttsP{\actfc \i{(\actrc\ast)} \actr} s''' \\
+	\implies &\i{read(s')} \equiv \i{read(s''')} \disj \i{read(s'')} \equiv \i{read(s''')}
+\end{align*}
+\end{theorem}
+where $s_0$ is an initial state in \Prog.
+To prove the theorem, we would need to introduce two other transition systems~\Spec~and~\ProgInv.
 
 
 \section{The Specification Transition System~\Spec}
@@ -168,49 +185,100 @@ $$ s_0 \ttsIn{\vphantom{a_n}}{} s_0 $$
 
 For the transition system~\Spec, its states are those in the set
 $$ \i{SpecState} \defeq (\i{Addr} \to \i{Data}) \times (\i{Addr} \to \i{Data}) $$
-which contains pairs of mappings from \i{Addr} to \i{Data}; these two mappings represent the volatile and stable parts of a state in the specification respectively.%
+which contains pairs of mappings from \i{Addr} to \i{Data}; these two mappings represent the volatile and stable parts of a state in the specification respectively. Similarly to $\i{read}$ in \Prog, \\
 \todo{define \i{volatile} and \i{stable}}\
+$$ \i{volatile}: \i{ProgState} \to (\i{Addr} \to \i{Data}) $$
+is a function that returns the mapping of the volatile part of a state in \Spec .
 The actions of~\Spec\ are the same as those of~\Prog.
 The transition relation
 $$ {\ttS{}} \subseteq \i{SpecState} \times \i{Action} \times \i{SpecState} $$
 is defined by%
 \todo{revise}
 \begin{alignat*}{3}
-	\ttS{\actw_{\i{addr}, \i{data}}} \defeq{}& \{\, (s, \actw, s')&& \mid stable(s) \equiv stable(s') \\ & \omit \span \span \conj \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s') \,\}}   \\
-	\ttS{\actf} \defeq{}& \{\, (s, \actf, s')&& \mid \i{volatile(s)} \equiv \i{volatile(s')}\\
+	\ttS{\awa{ww}{\actw_{\i{addr}, \i{data}}}} \defeq{}& \{\, (s, \actw, s')&& \mid stable(s) \equiv stable(s') \\ & \omit \span \span \conj \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s') \,\}}  \\
+	\ttS{\awa{ww}\actf} \defeq{}& \{\, (s, \actf, s')&& \mid \i{volatile(s)} \equiv \i{volatile(s')}\\
 	& \quad && \hmid \conj \i{volatile(s)} \equiv \i{stable(s')}\,\} \\
-	\ttS{\actr} \defeq{}& \{\, (s, \actr, s')&& \mid \i{stable(s)} \equiv \i{volatile(s')}\\
+	\ttS{\awa{ww}\actr} \defeq{}& \{\, (s, \actr, s')&& \mid \i{stable(s)} \equiv \i{volatile(s')}\\
 	& \quad && \hmid \conj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\actwc} \defeq{}& \{\, (s, \actwc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\actfc} \defeq{}& \{\, (s, \actfc, s')&& \mid \i{volatile(s)} \equiv \i{stable(s')}\\
+	\ttS{\awa{ww}\actwc} \defeq{}& \{\, (s, \actwc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\awa{ww}\actfc} \defeq{}& \{\, (s, \actfc, s')&& \mid \i{volatile(s)} \equiv \i{stable(s')}\\
 	& \quad && \hmid \disj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\actrc} \defeq{}& \{\, (s, \actrc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\}
+	\ttS{\awa{ww}\actrc} \defeq{}& \{\, (s, \actrc, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\}
 \end{alignat*}
 where $[x \mapsto v]$ is a function of function that remaps an address to a new value
 $$f[x \mapsto v](y) \defeq \begin{cases} v & \text{if } y = x \\ f(x) & \text{otherwise} \end{cases} $$
+Then we are able to state and prove crash-determinacy on \Spec.
+\begin{lemma}[crash-determinacy on \Spec]\label{cdS}
+	Similarly to \cref{theoremP}, for all $s, s',s'', s''' \in \i{SpecState}$, there are two possible situations, and crash-determinacy holds for both cases:
+	\begin{align*}
+		\tag{case-$\actwc$}
+			&s \ttsS{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
+		\implies &\i{volatile(s')} \equiv \i{volatile(s'')}
+\\
+		\tag{case-$\actfc$}
+		&s \ttsS{(\i{(\actw \lor \actf)\ast}) \actf} s' \conj
+	  s' \ttsS{\i{\actw\ast}} s'' \conj
+	  s'' \ttsS{\actfc  (\i{\actrc\ast}) \actr } s'''\\
+		\implies &\i{volatile(s')} \equiv \i{volatile(s''')} \lor \i{volatile(s'')} \equiv \i{volatile(s''')}
+	\end{align*}
+\end{lemma}
+\begin{proof}[Proof of case-\i{\actwc}.]
+	$s'$ is transited from some $s \in \i{SpecState}$ by \i{\ttS{\actf}}, so
+		$$\i{volatile(s')} \equiv \i{volatile(s)} \equiv \i{stable(s')}$$
+	since any state transited by \i{\ttS{\actw}} , \i{\ttS{\actwc}} or \i{\ttS{\actrc}} has its stable unchanged from the state it's transited from, there is an intermediate state $s'_i$ such that
+		$$s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc*)}} s'_i \conj s'_i \ttS{\actr} s'' \conj stable(s') \equiv stable(s'_i)$$
+	, by \i{\ttS{\actr}} we know that $\i{stable(s'_i) \equiv volatile(s'')}$, thus we have
+		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
+\end{proof}
+\begin{proof}[Proof of case-\i{\actfc}]
+	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \ttS{\actfc} s''_i \conj s''_i \ttsS{\actrc*} s''_j \conj s''_j  \ttS{\actr} s'''$$
+	then by case analysis on $s'' \ttS{\actfc} s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
+	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
+	\mbox{case-$\actwc$}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
+	if $\i{stable(s'') \equiv stable(s''_i)}$, the proof is exactly the same with \mbox{case-$\actwc$}, thus $$\i{volatile(s') \equiv volatile(s''')}$$
+\end{proof}
+This lemma, combined with simulation between \Spec\ and \ProgInv, will be used to establish proof of crash-determinacy on \ProgInv in later sections.
+
 
 \section{The Sub-System~\ProgInv\ with Invariants}
 \label{sec:ProgInv}
 \ProgInv\ is a transition system whose states is a subset of \i{ProgState} \---- states that satisfies either representation invariance or crash invariance. 
 $$\i{ProgState^{\dagger}} \defeq{} \{\, s \in \i{ProgState} \mid \i{RI(s) \lor CI(s)} \,\}$$
-Its transition relation 
+The transition relation of~\ProgInv:
 $$\ttPI{} \subseteq \i{ProgState^\dagger} \times \i{Action} \times \i{ProgState^\dagger}$$
 which can be easily shown to be a subset of \i{\ttP{}}, is defined by
-\begin{align*}
-	\ttPI{\awa{w}\actw} \defeq{}& \{\, (s, \actw, s') \\
+\begin{alignat*}{3}
+	\ttPI{\awa{w}\actw} \defeq{}& \{\, (s, \actw, s')
 	&\mid s \ttP{\awa{w}\actw} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
-	\ttPI{\awa{w}\actf} \defeq{}& \{\, (s, \actf, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actf} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
-	\ttPI{\awa{w}\actr} \defeq{}& \{\, (s, \actr, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actr} s' \conj \i{CI(s)} \conj \i{RI(s')} \,\} \\
-	\ttPI{\awa{w}\actwc} \defeq{}& \{\, (s, \actwc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actwc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
-	\ttPI{\awa{w}\actfc} \defeq{}& \{\, (s, \actfc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actfc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
-	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, \actrc, s') \in ProgState^\dagger \times ProgState^\dagger\\ &\mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
-\end{align*}
-
+	\ttPI{\awa{w}\actf} \defeq{}& \{\, (s, \actf, s') &\mid s \ttP{\awa{w}\actf} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}\actr} \defeq{}& \{\, (s, \actr, s') &\mid s \ttP{\awa{w}\actr} s' \conj \i{CI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}\actwc} \defeq{}& \{\, (s, \actwc, s') &\mid s \ttP{\awa{w}\actwc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actfc} \defeq{}& \{\, (s, \actfc, s') &\mid s \ttP{\awa{w}\actfc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, \actrc, s') &\mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
+\end{alignat*}
 
 \section{Simulation of~\ProgInv\ by~\Spec}
 \label{sec:sim}
-
-
+Recall that to establish \cref{theoremP}, we first have to define simulation between \Spec\ and \Prog, then derive crash-determinacy on \Prog\ from it. Similarly to invariants, two types of simulation relations, the abstract relation $\i{AR}$ and crash relation $\i{CR}$, which are transformed or preserved on states that satisfies certain invariants(i.e. states in \ProgInv), have been proved with a SMT solver, thus are made assumptions.
+\begin{assumption}[per operation correctness]
+	For all $s, s_0 \in \i{ProgState^\dagger}$, $t, t_0 \in \i{SpecState}$, the following are assumed:
+\begin{align*}
+s \ttPI{\awa{\actw}{\actw }} s' \conj t \ttS{\awa{\actw}{\actw }} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actf }} s' \conj t \ttS{\awa{\actw}{\actf }} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actwc}} s' \conj t \ttS{\awa{\actw}{\actwc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
+s \ttPI{\awa{\actw}{\actfc}} s' \conj t \ttS{\awa{\actw}{\actfc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
+s \ttPI{\awa{\actw}{\actr }} s' \conj t \ttS{\awa{\actw}{\actr }} t' \conj \i{CR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actrc}} s' \conj t \ttS{\awa{\actw}{\actrc}} t' \conj \i{CR}(s, t) &\implies \i{CR}(s', t')
+\end{align*}
+\end{assumption}
+As well proved with a solver, for a pair of \i{s \in ProgState^\dagger} and \i{t \in SpecState} that satisfies abstract relation, the content of $s$ is the same with the content of the volatile part of $t$.
+\begin{assumption}[observational equivalence]
+	\begin{multline*}
+	 \forall \i{s} \in \i{ProgState^\dagger},t \in \i{SpecState} \ldotp \\
+	 \i{AR(s, t)} \implies \i{read(s)} \equiv \i{volatile(t)} \\
+	\end{multline*}
+\end{assumption}
+%%This assumption will play a important role in this proof, since now crash-determinacy on \Prog, as defined in \cref{theoremP}, can be derived from crash-determinacy on \Spec.
 
 \section{Proof of Crash-Determinacy}
 \label{sec:proof}
@@ -261,8 +329,6 @@ Important predicates and their meanings are given as follows:
 Lemmas that are trivial or have been proved with theorem prover can be assumed here:
 \begin{align*}
 	%%\i{ExistsSpec} &: \forall t \in \i{State}, a \in \i{Action} \ldotp \exists t' \in \i{State} \ldotp t \llbracket a \rrbracket t'\\
-	\tag{Observational Equivalence} & \forall \i{rs} \in \i{ProgState},s \in \i{SpecState} \ldotp \\
-	& \qquad \i{RI(rs)} \conj \i{AR(rs, s)} \implies \i{read(rs)} \equiv \i{volatile(t)} \\
 	\tag{Initialization}\label{Initialization} &\forall \i{rs} \in \i{ProgState^\dagger} \ldotp\\
 	&\qquad \i{Init(rs) \implies \exists s \in SpecState \ldotp RI(rs) \conj AR(rs, s)}\\
 	&\i{\forall s, s' \in ProgState^\dagger, t, t' \in SpecState,}\\
@@ -292,21 +358,6 @@ We can now proceed to state and prove the lemmas and the theorem.
 		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
 \end{proof}
 
-\begin{lemma}\label{lemma-2-2}
-\begin{multline*}
-      \forall s, s', s'', s''' \in \i{SpecState} \ldotp \\
-      s \llbracket \i{(w \lor f)\ast} \cdot f \rrbracket s' \conj
-	  s' \llbracket \i{w\ast} \rrbracket^{P*} s'' \conj
-	  s'' \llbracket f^c \cdot \i{r^c\ast} \cdot r \rrbracket^{P*} s'''\\ \implies \i{volatile(s')} \equiv \i{volatile(s''')} \lor \i{volatile(s'')} \equiv \i{volatile(s''')}
-\end{multline*}
-\end{lemma}
-\begin{proof}
-	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \llbracket f^c \rrbracket^P s''_i \conj s''_i \llbracket r^c* \rrbracket^{P*} s''_j \conj s''_j \llbracket r \rrbracket^P s'''$$
-	then by doing a case analysis on $s'' \llbracket f^c \rrbracket s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
-	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
-	\cref{lemma-2-1}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
-	if $\i{stable(s'') \equiv stable(s''_i)}$, the proof is exactly the same with \cref{lemma-2-1}, thus $$\i{volatile(s') \equiv volatile(s''')}$$
-\end{proof}
 
 \begin{lemma}\label{lemma-1}
 	\begin{align*}
