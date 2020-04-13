@@ -1,0 +1,109 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix2019_v3}
+
+\usepackage{microtype}
+\usepackage[leqno]{amsmath}
+\allowdisplaybreaks
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{stmaryrd}
+\usepackage{setspace}
+\usepackage{stfloats}
+\usepackage{tikz}
+\usetikzlibrary{matrix}
+
+\usepackage{adjustbox}
+\usepackage{hyperref}
+%you can add more packages using the same code above
+
+\usepackage[color=yellow,textsize=scriptsize]{todonotes}
+\usepackage{cleveref}
+
+\setlength{\marginparwidth}{1.5cm}
+%------------------
+
+%\setlength{\topmargin}{0.0in}
+%\setlength{\textheight}{10in}
+%\setlength{\oddsidemargin}{0.0in}
+%\setlength{\evensidemargin}{0.0in}
+%\setlength{\textwidth}{6.5in}
+
+%-------------------
+\theoremstyle{definition}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem*{example}{Example}
+
+%------------------
+
+%Everything before begin document is called the pre-amble and sets out how the document will look
+%It is recommended you don't touch the pre-amble until you are familiar with LateX
+
+\newcommand{\defeq}{{}\triangleq{}}
+\newcommand{\conj}{\mathrel\land}
+\newcommand{\disj}{\mathrel\lor}
+
+\newcommand{\awa}[2]{\hphantom{#1}\mathclap{#2}\hphantom{#1}} % as wide as
+
+\renewcommand{\i}[1]{\ensuremath{\mathit{#1}}}
+
+\newcommand{\Spec}{\ensuremath{\mathbb S}}
+\newcommand{\Prog}{\ensuremath{\mathbb P}}
+\newcommand{\ProgInv}{\ensuremath{\mathbb P^\dagger}}
+
+\newcommand{\actw}{\mathsf w}
+\newcommand{\actwc}{\mathsf w^\mathsf{c}}
+\newcommand{\actf}{\mathsf f}
+\newcommand{\actr}{\mathsf r}
+\newcommand{\actfc}{\mathsf{f^c}}
+\newcommand{\actrc}{\mathsf{r^c}}
+\newcommand{\hmid}{\hphantom{\mid{}}}
+
+\newcommand{\ttIn}[2]{\xrightarrow{#1}_{#2}}
+%%\newcommand{\ttsIn}[2]{\xrightarrow{#1}^{\raisebox{-7pt}{\scriptsize\ensuremath{*}}}_{#2}}
+\newcommand{\dxrightarrow}[1]{\xrightarrow{#1}\mathrel{\mkern-14mu}\rightarrow}
+\newcommand{\ttsIn}[2]{\dxrightarrow{#1}_{#2}}
+\newcommand{\ttP}[1]{\ttIn{#1}{\Prog}}
+\newcommand{\ttsP}[1]{\ttsIn{#1}{\Prog}}
+\newcommand{\ttS}[1]{\ttIn{#1}{\Spec}}
+\newcommand{\ttsS}[1]{\ttsIn{#1}{\Spec}}
+\newcommand{\ttPI}[1]{\ttIn{#1}{\ProgInv}}
+\newcommand{\ttsPI}[1]{\ttsIn{#1}{\ProgInv}}
+
+
+\begin{document}
+
+\title{Crash-Determinacy in Agda}
+\author{Lin Tzu Chi}
+%\date{}
+\maketitle
+
+\begin{abstract}
+We have proved crash-determininacy in Agda, assuming that some essential properties have been verified by an SMT solver.
+\end{abstract}
+
+%The following code is not run because of the percentage sign, but you might find it useful for future work
+% \tableofcontents
+
+\input{sec1}
+
+\input{sec2}
+
+\input{sec3}
+
+\input{sec4}
+
+\input{sec5}
+
+\input{sec6}
+
+\end{document}

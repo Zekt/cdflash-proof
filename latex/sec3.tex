@@ -1,0 +1,58 @@
+\section{The Specification Transition System~\Spec}
+\label{sec:Spec}
+
+For the transition system~\Spec, its states are those in the set
+$$ \i{SpecState} \defeq (\i{Addr} \to \i{Data}) \times (\i{Addr} \to \i{Data}) $$
+which contains pairs of mappings from \i{Addr} to \i{Data}; these two mappings represent the volatile and stable parts of a state in the specification respectively. Similarly to $\i{read}$ in \Prog, \\
+\todo{define \i{volatile} and \i{stable}}\
+$$ \i{volatile}: \i{ProgState} \to (\i{Addr} \to \i{Data}) $$
+is a function that returns the mapping of the volatile part of a state in \Spec .
+The actions of~\Spec\ are the same as those of~\Prog.
+The transition relation
+$$ {\ttS{}} \subseteq \i{SpecState} \times \i{Action} \times \i{SpecState} $$
+is defined by
+\todo{revise}
+\begin{alignat*}{3}
+	\ttS{\awa{ww}{\actw_{\i{addr}, \i{data}}}} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \\
+	& \omit \span \span \conj \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s')} \,\} \\
+	\ttS{\awa{ww}\actf} \defeq{}& \{\, (s, s')&& \mid \i{volatile(s)} \equiv \i{volatile(s')}\\
+	& \quad && \hmid \conj \i{volatile(s)} \conj \i{stable(s')} \,\} \\
+	\ttS{\awa{ww}\actr} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{volatile(s')}\\
+	& \quad && \hmid \conj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\awa{ww}\actwc} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\awa{ww}\actfc} \defeq{}& \{\, (s, s')&& \mid \i{volatile(s)} \equiv \i{stable(s')} \\
+	& \quad && \hmid \disj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
+	\ttS{\awa{ww}\actrc} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\}
+\end{alignat*}
+where $[x \mapsto v]$ is a function of function that remaps an address to a new value
+$$f[x \mapsto v](y) \defeq \begin{cases} v & \text{if } y = x \\ f(x) & \text{otherwise} \end{cases} $$
+Then we are able to state and prove crash-determinacy on \Spec.
+\begin{lemma}[crash-determinacy on \Spec]\label{cdS}
+	Similarly to \cref{theoremP}, for all $s, s',s'', s''' \in \i{SpecState}$, there are two possible situations where a recovery is needed, and we will prove that crash-determinacy holds in both cases:
+	\begin{align*}
+		\intertext{Case $\actwc$:}
+			&s \ttsS{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
+			\implies &\i{volatile(s')} \equiv \i{volatile(s'')} 
+		\intertext{Case $\actfc$:}
+		&s \ttsS{(\i{(\actw \lor \actf)\ast}) \actf} s' \conj
+	  s' \ttsS{\i{\actw\ast}} s'' \conj
+	  s'' \ttsS{\actfc  (\i{\actrc\ast}) \actr } s'''\\
+		\implies &\i{volatile(s')} \equiv \i{volatile(s''')} \lor \i{volatile(s'')} \equiv \i{volatile(s''')}
+	\end{align*}
+\end{lemma}
+\begin{proof}[Proof of case\ \i{\actwc}.]
+	$s'$ is transited from some $s \in \i{SpecState}$ by \i{\ttS{\actf}}, so
+		$$\i{volatile(s')} \equiv \i{volatile(s)} \equiv \i{stable(s')}$$
+	since any state transited by \i{\ttS{\actw}} , \i{\ttS{\actwc}} or \i{\ttS{\actrc}} has its stable unchanged from the state it's transited from, there is an intermediate state $s'_i$ such that
+		$$s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc*)}} s'_i \conj s'_i \ttS{\actr} s'' \conj stable(s') \equiv stable(s'_i)$$
+	, by \i{\ttS{\actr}} we know that $\i{stable(s'_i) \equiv volatile(s'')}$, thus we have
+		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
+\end{proof}
+\begin{proof}[Proof of case\ \i{\actfc}]
+	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \ttS{\actfc} s''_i \conj s''_i \ttsS{\actrc*} s''_j \conj s''_j  \ttS{\actr} s'''$$
+	then by case analysis on $s'' \ttS{\actfc} s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
+	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
+	\mbox{case-$\actwc$}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
+	if $\i{stable(s'') \equiv stable(s''_i)}$, the proof is exactly the same with \mbox{case-$\actwc$}, thus $$\i{volatile(s') \equiv volatile(s''')}$$
+\end{proof}
+This lemma, combined with simulation between \Spec\ and \ProgInv, will be used to establish proof of crash-determinacy on \ProgInv in later sections.
