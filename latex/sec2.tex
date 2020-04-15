@@ -39,7 +39,7 @@ s \ttP{\awa{\actw}{\actrc}} s' \conj \i{CI}(s) &\implies \i{CI}(s')
 \end{assumption}
 
 Below we will often need to talk about sequences of transitions in \Prog\ and other transition systems, and a general definition will be helpful.
-\begin{definition}[fragments]
+\begin{definition}[fragments]\label{def:frag}
 Let $T = (S, \Lambda, \ttIn{}{})$~be a labelled transition system.
 A \emph{fragment} in~$T$ is a sequence of transitions
 $$ s_0 \ttIn{a_1}{} s_1 \ttIn{a_2}{} \cdots \ttIn{a_n}{} s_n $$
@@ -52,7 +52,7 @@ $$ s_0 \ttsIn{\vphantom{a_n}}{} s_0 $$
 
 Our goal, crash-determinacy on~\Prog, can be stated as follows:
 \begin{theorem}[crash-determinacy on \Prog] \label{theoremP}
-	There are two possible situations where a recovery is needed, crash at write and crash at flush, we will prove that crash-determinacy would hold in both scenarios. Thus for all $s_0, s', s'', s''' \in \i{ProgState}$, the theorem can be stated separatedly in two cases:
+	There are two possible situations where a recovery is needed, crash at write and crash at flush, we will prove that crash-determinacy would hold in both scenarios. Thus for all $s_0, s', s'', s''' \in \i{ProgState}$, the theorem can be stated separately in two cases:
 \begin{align*}
 %Case $\actwc$: \\
 	         \intertext{Case $\actwc$:}
