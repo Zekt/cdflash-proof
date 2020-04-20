@@ -9,6 +9,7 @@ variable
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; sym)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
+open import Data.Nat using (ℕ; zero; suc; _≥_)
 open import Data.Product using (_×_; _,_; proj₁; proj₂; Σ-syntax; ∃; ∃-syntax)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using (_$_)
@@ -26,20 +27,24 @@ data Action : Set where
   wᶜ     :                              Action
   fᶜ     :                              Action
   rᶜ     :                              Action
+  cp     :                              Action
+  er     :                              Action
+  cpᶜ    :                              Action
+  erᶜ    :                              Action
 
 variable
   ac : Action
 
--- Stable Reserving Actions
-data isSR : Action → Set where -- disjoint union of stable reserving actions
-  w  : isSR w[ addr ↦ dat ]
-  r  : isSR r
-  wᶜ : isSR wᶜ
-  rᶜ : isSR rᶜ
-
+data Normal : Action → Set where
+  w  : Normal w[ addr ↦ dat ]
+  cp : Normal cp
+  er : Normal er
 
 data Write : Action → Set where
   w : Write w[ addr ↦ dat ]
+
+data Snapshot : Action → Set where
+  f : Snapshot f
 
 data RecoveryCrash : Action → Set where
   rᶜ : RecoveryCrash rᶜ
@@ -57,6 +62,7 @@ record State : Set where
   field
     volatile : Addr → Data
     stable   : Addr → Data
+    w-count  : ℕ
 
 variable
   t  : State
@@ -77,44 +83,59 @@ _<≐>_ : ∀ {s t u : Addr → Data} → s ≐ t → t ≐ u → s ≐ u
 _<≐>_ {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
 
 data Step (s s' : State) : Action → Set where
-  w  : (addr : Addr) (dat : Data) → State.volatile s [ addr ↦ dat ] ≐ State.volatile s'
-                                  → State.stable s ≐ State.stable s'
-                                  → Step s s' w[ addr ↦ dat ]
-  f  : State.volatile s ≐ State.volatile s'
-     → State.volatile s ≐ State.stable s'
-     → Step s s' f
-  r  : State.stable s ≐ State.volatile s'
-     → State.stable s ≐ State.stable s'
-     → Step s s' r
-  wᶜ : State.stable s ≐ State.stable s'
-     → Step s s' wᶜ
-  fᶜ : State.volatile s ≐ State.stable s' ⊎ State.stable s ≐ State.stable s'
-     → Step s s' fᶜ
-  rᶜ : State.stable s ≐ State.stable s'
-     → Step s s' rᶜ
+  w   : (addr : Addr) (dat : Data) → State.volatile s [ addr ↦ dat ] ≐ State.volatile s'
+                                   → State.stable s ≐ State.stable s'
+                                   → suc (State.w-count s) ≡ State.w-count s'
+                                   → Step s s' w[ addr ↦ dat ]
+  f   : State.volatile s ≐ State.volatile s'
+      → State.volatile s ≐ State.stable s'
+      → State.w-count s' ≡ zero
+      → Step s s' f
+  r   : State.stable s ≐ State.volatile s'
+      → State.stable s ≐ State.stable s'
+      → State.w-count s' ≡ zero
+      → Step s s' r
+  wᶜ  : State.stable s ≐ State.stable s'
+      → Step s s' wᶜ
+  fᶜ  : State.volatile s ≐ State.stable s' ⊎ State.stable s ≐ State.stable s'
+      → Step s s' fᶜ
+  rᶜ  : State.stable s ≐ State.stable s'
+      → Step s s' rᶜ
+  cp  : State.volatile s ≐ State.volatile s'
+      → State.stable s ≐ State.stable s'
+      → State.w-count s ≡ State.w-count s'
+      → Step s s' cp
+  er  : State.volatile s ≐ State.volatile s'
+      → State.stable s ≐ State.stable s'
+      → State.w-count s ≡ State.w-count s'
+      → Step s s' er
+  cpᶜ : State.stable s ≐ State.stable s' → Step s s' cpᶜ
+  erᶜ : State.stable s ≐ State.stable s' → Step s s' erᶜ
 
 _⟦_⟧▸_ : State → Action → State → Set
 s ⟦ ac ⟧▸ s' = Step s s' ac
 
-record StbR (ac : Action) : Set where
+record StbR (ac : Action) : Set where --Stable Reserving Actions
   field
     preserve : {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
 
 instance
-  _ : StbR r
-  _ = record { preserve = λ{(r _ ss) → ss} }
-
-instance
-  _ : StbR w[ addr ↦ dat ]
-  _ = record { preserve = λ{(w _ _ _ ss) → ss} }
-
-instance
-  _ : StbR wᶜ
-  _ = record { preserve = λ{(wᶜ ss) → ss} }
-
-instance
-  _ : StbR rᶜ
-  _ = record { preserve = λ{(rᶜ ss) → ss} }
+  stb-r   : StbR r
+  stb-r   = record { preserve = λ{(r _ ss _) → ss} }
+  stb-w   : StbR w[ addr ↦ dat ]
+  stb-w   = record { preserve = λ{(w _ _ _ ss _) → ss} }
+  stb-wᶜ  : StbR wᶜ
+  stb-wᶜ  = record { preserve = λ{(wᶜ ss) → ss} }
+  stb-rᶜ  : StbR rᶜ
+  stb-rᶜ  = record { preserve = λ{(rᶜ ss) → ss} }
+  stb-cp  : StbR cp
+  stb-cp  = record { preserve = λ{(cp _ ss _) → ss}}
+  stb-er  : StbR er
+  stb-er  = record { preserve = λ{(er _ ss _) → ss}}
+  stb-cpᶜ : StbR cpᶜ
+  stb-cpᶜ = record { preserve = λ{(cpᶜ ss) → ss}}
+  stb-erᶜ : StbR erᶜ
+  stb-erᶜ = record { preserve = λ{(erᶜ ss) → ss}}
 
 data Fragment : Set where
   []  :                     Fragment
@@ -130,6 +151,8 @@ data All (P : Action → Set) : Fragment → Set where
   []  : All P []
   _∷_ : ∀ {x : Action} {xs : Fragment} → All P xs → P x → All P (xs • x)
 
+data Or (P1 : Action → Set) (P2 : Action → Set) : Set
+
 mapAll : {P Q : Action → Set} {xs : Fragment} → ({x : Action} → P x → Q x) → All P xs → All Q xs
 mapAll pq []        = []
 mapAll pq (all ∷ x) = mapAll pq all ∷ pq x
@@ -138,11 +161,12 @@ _⊙_ : Fragment → Fragment → Fragment
 xs ⊙ []       = xs
 xs ⊙ (ys • y) = (xs ⊙ ys) • y
 
+
+--Recursive Transitive Closure
 data RTC {S : Set} (R : S → Action → S → Set) : S → Fragment → S → Set where
   ∅   : ∀ {s : S} → RTC R s [] s
   _•_ : ∀ {s t u : S} {acs : Fragment} {ac : Action}
       → RTC R s acs t → R t ac u → RTC R s (acs • ac) u
-
 
 
 _⟦_⟧*▸_ = RTC _⟦_⟧▸_
@@ -158,23 +182,17 @@ _++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : 
 tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
 
-reserve : {ac : Action} → isSR ac → {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
-reserve w  (w _ _ _ ss) = ss
-reserve r  (r _ ss)     = ss
-reserve wᶜ (wᶜ ss)      = ss
-reserve rᶜ (rᶜ ss)      = ss
-
-idemₛ : ∀ {frag : Fragment} → All isSR frag
+idemₛ : ∀ {frag : Fragment} → All StbR frag
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
       → State.stable s ≐ State.stable s'
 idemₛ [] ∅ = λ{_ → refl}
-idemₛ (all ∷ x) (s*▸s'' • s''▸s') = (idemₛ all s*▸s'') <≐> reserve x s''▸s'
+idemₛ (all ∷ x) (s*▸s'' • s''▸s') = (idemₛ all s*▸s'') <≐> StbR.preserve x s''▸s'
 
-w→sr : Write ac → isSR ac
-w→sr w = w
+w→sr : Write ac → StbR ac
+w→sr w = stb-w
 
-rᶜ→sr : RecoveryCrash ac → isSR ac
-rᶜ→sr rᶜ = rᶜ
+rᶜ→sr : RecoveryCrash ac → StbR ac
+rᶜ→sr rᶜ = stb-rᶜ
 
 lemma2-1 : ∀ {ac : Action} → {{_ : StbR ac}}
          → ∀ {frag-w frag-rᶜ : Fragment}
@@ -182,29 +200,29 @@ lemma2-1 : ∀ {ac : Action} → {{_ : StbR ac}}
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} {{du}} {frag-w} {frag-rᶜ} {{all₁}} {{all₂}} s▸s' with splitRTC {splitOn = frag-w • ac} s▸s'
-...    | s″ , s▸s″ • x , s″x▸s'  = idemₛ (mapAll w→sr  all₁) s▸s″   <≐>
-                                   StbR.preserve du x               <≐>
+...    | s″ , s▸s″ • x , s″x▸s'  = idemₛ (mapAll w→sr all₁) s▸s″   <≐>
+                                   StbR.preserve du x              <≐>
                                    idemₛ (mapAll rᶜ→sr all₂) s″x▸s'
 
 lemma2-2-f : ∀ {s s' : State} {ef : Fragment} → s ⟦ ef • f ⟧*▸ s' → State.volatile s' ≐ State.stable s'
-lemma2-2-f (s▸s' • (f vv vs)) = sym-≐ vv <≐> vs
+lemma2-2-f (s▸s' • (f vv vs _)) = sym-≐ vv <≐> vs
 
 lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {ef frag-w frag-rᶜ}
            → {{_ : All NormalSuccess ef}} → {{_ : All Write frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
-lemma-2-wᶜ s₀▸s' (s'▸s • r sv ss) = lemma2-2-f s₀▸s' <≐>
-                                    lemma2-1 s'▸s    <≐>
-                                    sv
+lemma-2-wᶜ s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s' <≐>
+                                      lemma2-1 s'▸s    <≐>
+                                      sv
 
 lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
            → {{_ : All NormalSuccess ef}} → {{_ : All Write frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
-lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs) s₁▸s₂ (s₂▸s • r sv ss)
+lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
       with splitRTC {splitOn = ([] • fᶜ)} s₂▸s
 ...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sr all₂ ) s₂'▸s <≐> sv
-...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs)    <≐>
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl)    <≐>
                                                     idemₛ (mapAll w→sr  all₁) s₁▸s₂ <≐> ssᶜ <≐>
                                                     idemₛ (mapAll rᶜ→sr all₂) s₂'▸s <≐> sv
 
