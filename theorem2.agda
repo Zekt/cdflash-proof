@@ -36,11 +36,11 @@ data Action : Set where
 variable
   ac : Action
 
-data Normal : Action → Set where
-  w  : Normal w[ addr ↦ dat ]
-  wᶠ : Normal wᶠ
-  cp : Normal cp
-  er : Normal er
+data Regular : Action → Set where
+  w  : Regular w[ addr ↦ dat ]
+  wᶠ : Regular wᶠ
+  cp : Regular cp
+  er : Regular er
 
 data Write : Action → Set where
   w  : Write w[ addr ↦ dat ]
@@ -52,28 +52,28 @@ data Snapshot : Action → Set where
 data RecoveryCrash : Action → Set where
   rᶜ : RecoveryCrash rᶜ
 
-data NormalSuccess : Action → Set where
-  w : NormalSuccess w[ addr ↦ dat ]
-  f : NormalSuccess f
+data RegularSuccess : Action → Set where
+  w : RegularSuccess w[ addr ↦ dat ]
+  f : RegularSuccess f
 
-data NormalCrash : Action → Set where
-  wᶜ  : NormalCrash wᶜ
-  fᶜ  : NormalCrash fᶜ
-  cpᶜ : NormalCrash cpᶜ
-  erᶜ : NormalCrash erᶜ
+data RegularCrash : Action → Set where
+  wᶜ  : RegularCrash wᶜ
+  fᶜ  : RegularCrash fᶜ
+  cpᶜ : RegularCrash cpᶜ
+  erᶜ : RegularCrash erᶜ
 
-data Normal×Snapshot : Action → Set where
-  w  : Normal×Snapshot w[ addr ↦ dat ]
-  wᶠ : Normal×Snapshot wᶠ
-  cp : Normal×Snapshot cp
-  er : Normal×Snapshot er
-  f  : Normal×Snapshot f
+data Regular×Snapshot : Action → Set where
+  w  : Regular×Snapshot w[ addr ↦ dat ]
+  wᶠ : Regular×Snapshot wᶠ
+  cp : Regular×Snapshot cp
+  er : Regular×Snapshot er
+  f  : Regular×Snapshot f
 
-data Normal×SnapshotCrash : Action → Set where
-  wᶜ  : Normal×SnapshotCrash wᶜ
-  cpᶜ : Normal×SnapshotCrash cpᶜ
-  erᶜ : Normal×SnapshotCrash erᶜ
-  fᶜ  : Normal×SnapshotCrash fᶜ
+data Regular×SnapshotCrash : Action → Set where
+  wᶜ  : Regular×SnapshotCrash wᶜ
+  cpᶜ : Regular×SnapshotCrash cpᶜ
+  erᶜ : Regular×SnapshotCrash erᶜ
+  fᶜ  : Regular×SnapshotCrash fᶜ
 
 record State : Set where
   constructor <_,_>
@@ -211,7 +211,7 @@ idemₛ : ∀ {frag : Fragment} → All StbP frag
 idemₛ [] ∅ = λ{_ → refl}
 idemₛ (all ∷ x) (s*▸s'' • s''▸s') = (idemₛ all s*▸s'') <≐> StbP.preserve x s''▸s'
 
-n→sp : Normal ac → StbP ac
+n→sp : Regular ac → StbP ac
 n→sp w  = stb-w
 n→sp wᶠ = stb-wᶠ
 n→sp cp = stb-cp
@@ -222,7 +222,7 @@ rᶜ→sp rᶜ = stb-rᶜ
 
 lemma2-1 : ∀ {ac : Action} → {{_ : StbP ac}}
          → ∀ {frag-w frag-rᶜ : Fragment}
-         → {{_ : All Normal frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
+         → {{_ : All Regular frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
 lemma2-1 {ac} {{du}} {frag-w} {frag-rᶜ} {{all₁}} {{all₂}} s▸s' with splitRTC {splitOn = frag-w • ac} s▸s'
@@ -234,7 +234,7 @@ lemma2-2-f : ∀ {s s' : State} {ef : Fragment} → s ⟦ ef • f ⟧*▸ s' �
 lemma2-2-f (s▸s' • (f vv vs _)) = sym-≐ vv <≐> vs
 
 lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {ef frag-w frag-rᶜ}
-           → {{_ : All Normal×Snapshot ef}} → {{_ : All Normal frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
+           → {{_ : All Regular×Snapshot ef}} → {{_ : All Regular frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
 lemma-2-wᶜ s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s' <≐>
@@ -242,7 +242,7 @@ lemma-2-wᶜ s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s' <≐>
                                       sv
 
 lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
-           → {{_ : All Normal×Snapshot ef}} → {{_ : All Normal frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
+           → {{_ : All Regular×Snapshot ef}} → {{_ : All Regular frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
 lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
@@ -252,17 +252,17 @@ lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {{_}} {{all₁}} {{all₂
                                                     idemₛ (mapAll n→sp all₁) s₁▸s₂ <≐> ssᶜ <≐>
                                                     idemₛ (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
 
-module CrashDeterminacy
+module SnapshotConsistency
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
   (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
   (RI CI : RawStateᴾ → Set)
   (AR CR : RawStateᴾ → State → Set)
   (Pre : RawStateᴾ → Action → Set )
-  (RIRI : {s s' : RawStateᴾ} {ac : Action} → Normal×Snapshot ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
-  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → Normal×Snapshot ac
+  (RIRI : {s s' : RawStateᴾ} {ac : Action} → Regular×Snapshot ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
+  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → Regular×Snapshot ac
         → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
-  (RICI : {s s' : RawStateᴾ} {ac : Action} → NormalCrash ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → CI s')
-  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → NormalCrash ac
+  (RICI : {s s' : RawStateᴾ} {ac : Action} → RegularCrash ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → CI s')
+  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → RegularCrash ac
         → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
   (CIRI : {s s' : RawStateᴾ} → s ⟦ r ⟧ᴿ▸ s' → CI s → RI s')
   (CRAR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ r ⟧ᴿ▸ s' → t ⟦ r ⟧▸ t' → CI s × CR s t → AR s' t')
@@ -365,7 +365,7 @@ module CrashDeterminacy
 
 --original-lemma1 : Init rs → AR rs t → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t' ] (t ⟦ ef ⟧*▸ t')
 
-  lemma1-wᶜ : {{_ : All Normal×Snapshot ef₁}} → {{_ : All Normal ef₂}} → {{_ : All RecoveryCrash ef₃}} →
+  lemma1-wᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
                 SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
                 read (unpack s') ≐ read (unpack s'')
   lemma1-wᶜ SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
@@ -376,7 +376,7 @@ module CrashDeterminacy
                                              lemma-2-wᶜ t*▸t' t'*▸t'' <≐>
                                              sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
 
-  lemma1-fᶜ : {{_ : All Normal×Snapshot ef₁}} → {{_ : All Normal ef₂}} → {{_ : All RecoveryCrash ef₃}} →
+  lemma1-fᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
                 SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
                 read (unpack s'') ≐ read (unpack s''') ⊎ read (unpack s') ≐ read (unpack s''')
   lemma1-fᶜ {ef₃ = ef₃}
@@ -399,7 +399,7 @@ module CrashDeterminacy
   initialisation = let (t , RI-rs , AR-rs-t) = init
                    in  RI-rs , t , ar AR-rs-t
 
-  lift-n×s : {{_ : All Normal×Snapshot ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
+  lift-n×s : {{_ : All Regular×Snapshot ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
             ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
   lift-n×s ∅ = _ , ∅
   lift-n×s {{all ∷ w}} (rs*▸rs'' • rs''▸rs') =
@@ -418,7 +418,7 @@ module CrashDeterminacy
     let (rinv'' , s*▸s'') = lift-n×s  {{all}} rs*▸rs''
     in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
 
-  lift-n : {{_ : All Normal ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
+  lift-n : {{_ : All Regular ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
            ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
   lift-n {{all}} rs*▸rs' = lift-n×s {{(mapAll (λ{w → w; wᶠ → wᶠ; cp → cp; er → er}) all)}} rs*▸rs'
 
@@ -429,9 +429,14 @@ module CrashDeterminacy
     let (cinv'' , s*▸s'') = lift-rᶜ {{all}} rs*▸rs''
     in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
 
+  --Behavioral Correctness on Multi-recovery Fragments.
+  --BehavioralCorrectness : {{ _ : All OneRecovery ors}} → {{_ : Init rs}} → rs ⟦ ors ⊙ ef ⟧ᴿ*▸ rs' → ∃[ t ] (∃[ t' ] (t ⟦ ors ⊙ ef ⟧*▸ t' → read rs' ≐ State.volatile t'))
+  --BehavioralCorrectness rstrs = let init-ri , init-t , init-ef = initialisation
+  --                              in   init-t , {! !} , {!!}
+
 --   ef₁   f   ef₂    wᶜ    ef₃    r
 -- rs   rs₁ rs'   rs'₁  rs'₂   rs'₃ rs''
-  theorem-wᶜ : {{_ : All Normal×Snapshot ef₁}} → {{_ : All Normal ef₂}} → {{_ : All RecoveryCrash ef₃}} →
+  theorem-wᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
              {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
              read rs' ≐ read rs''
   theorem-wᶜ {ef₁} {ef₂} {ef₃} {{all₁}} rs*▸rs' (rs'▸rs'₃ • r▸rs'')
@@ -447,7 +452,7 @@ module CrashDeterminacy
 --
 ----   ef₁   f   ef₂    fᶜ     ef₃     r
 ---- rs   rs₁ rs'   rs''  rs''₁   rs''₂ rs'''
-  theorem-fᶜ : {{_ : All Normal×Snapshot ef₁}} → {{_ : All Normal ef₂}} → {{_ : All RecoveryCrash ef₃}} →
+  theorem-fᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
              {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
              read rs'' ≐ read rs''' ⊎ read rs' ≐ read rs'''
   theorem-fᶜ {ef₁} {ef₂} {ef₃} {{all₁}} rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
