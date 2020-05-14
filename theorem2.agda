@@ -177,6 +177,12 @@ variable
   ef₁ : Fragment
   ef₂ : Fragment
   ef₃ : Fragment
+  frag     : Fragment
+  frag-w   : Fragment
+  frag-rᶜ  : Fragment
+  flist    : List Action
+  flist-w  : List Action
+  flist-rᶜ : List Action
 
 data All {A : Set} (P : A → Set) : List A → Set where
   []  : All P []
@@ -211,7 +217,7 @@ _++RTC_ : {S : Set} {R : S → Action → S → Set} {s t u : S} {ef₁ ef₂ : 
 tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
 
-idemₛ : ∀ {frag : Fragment} {flist : List Action} → {prf : F2L frag flist} → All StbP flist
+idemₛ : {prf : F2L frag flist} → All StbP flist
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
       → State.stable s ≐ State.stable s'
 idemₛ {prf = empty} [] ∅ = λ{_ → refl}
@@ -227,11 +233,14 @@ rᶜ→sp : RecoveryCrash ac → StbP ac
 rᶜ→sp rᶜ = stb-rᶜ
 
 lemma2-1 : ∀ {ac : Action} → {{_ : StbP ac}}
-         → ∀ {frag-w frag-rᶜ : Fragment} → {flist-w flist-rᶜ : List Action} → {prf₁ : F2L frag-w flist-w } → {prf₂ : F2L frag-rᶜ flist-rᶜ}
+         → {frag-w frag-rᶜ : Fragment} {flist-w flist-rᶜ : List Action}
+           {prf₁ : F2L frag-w flist-w } {prf₂ : F2L frag-rᶜ flist-rᶜ}
          → {{all₁ : All Regular flist-w}} → {{all₂ : All RecoveryCrash flist-rᶜ}}
          → ∀ {s s' : State} → s ⟦ frag-w • ac ⊙ frag-rᶜ ⟧*▸ s'
          → State.stable s ≐ State.stable s'
-lemma2-1 {ac = ac} {{du}} {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {prf₁ = prf₁} {prf₂ = prf₂} {{all₁ = all₁}} {{all₂ = all₂}} s▸s' with splitRTC {splitOn = frag-w • ac} s▸s'
+lemma2-1 {ac = ac} {{du}} {frag-w = frag-w} {frag-rᶜ = frag-rᶜ}
+         {prf₁ = prf₁} {prf₂ = prf₂} {{all₁ = all₁}} {{all₂ = all₂}} s▸s'
+    with splitRTC {splitOn = frag-w • ac} s▸s'
 ...    | s″ , s▸s″ • x , s″x▸s'  = idemₛ {prf = prf₁} (mapAll n→sp all₁) s▸s″    <≐>
                                    StbP.preserve du x                            <≐>
                                    idemₛ {prf = prf₂} (mapAll rᶜ→sp all₂) s″x▸s'
@@ -239,149 +248,153 @@ lemma2-1 {ac = ac} {{du}} {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {prf₁ = pr
 lemma2-2-f : ∀ {s s' : State} {ef : Fragment} → s ⟦ ef • f ⟧*▸ s' → State.volatile s' ≐ State.stable s'
 lemma2-2-f (s▸s' • (f vv vs _)) = sym-≐ vv <≐> vs
 
-lemma-2-wᶜ : ∀ {s₀ s' s : State} → ∀ {ef frag-w frag-rᶜ} {eflist flist-w flist-rᶜ} {prf₁ : F2L ef eflist} {prf₂ : F2L frag-w flist-w} {prf₃ : F2L frag-rᶜ flist-rᶜ}
+lemma-2-wᶜ : ∀ {s₀ s' s : State} {ef frag-w frag-rᶜ} {eflist flist-w flist-rᶜ}
+             {prf₁ : F2L ef eflist} {prf₂ : F2L frag-w flist-w} {prf₃ : F2L frag-rᶜ flist-rᶜ}
            → {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
-lemma-2-wᶜ {prf₂ = prf₂} {prf₃ = prf₃} s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s'                        <≐>
+lemma-2-wᶜ {prf₂ = prf₂} {prf₃ = prf₃} s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s'                          <≐>
                                                                   lemma2-1 {prf₁ = prf₂} {prf₂ = prf₃} s'▸s <≐>
                                                                   sv
---
---lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} → ∀ {frag-w frag-rᶜ}
---           → {{_ : All Regular×Snapshot ef}} → {{_ : All Regular frag-w}} → {{_ : All RecoveryCrash frag-rᶜ}}
---           → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
---           → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
---lemma-2-fᶜ {frag-w = frag-w} {frag-rᶜ = frag-rᶜ} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
---      with splitRTC {splitOn = ([] • fᶜ)} s₂▸s
---...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₂ ) s₂'▸s <≐> sv
---...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl)    <≐>
---                                                    idemₛ (mapAll n→sp all₁) s₁▸s₂ <≐> ssᶜ <≐>
---                                                    idemₛ (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
---
---module SnapshotConsistency
---  (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
---  (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
---  (RI CI : RawStateᴾ → Set)
---  (AR CR : RawStateᴾ → State → Set)
---  (Pre : RawStateᴾ → Action → Set )
---  (RIRI : {s s' : RawStateᴾ} {ac : Action} → Regular×Snapshot ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
---  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → Regular×Snapshot ac
---        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
---  (RICI : {s s' : RawStateᴾ} {ac : Action} → RegularCrash ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → CI s')
---  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → RegularCrash ac
---        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
---  (CIRI : {s s' : RawStateᴾ} → s ⟦ r ⟧ᴿ▸ s' → CI s → RI s')
---  (CRAR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ r ⟧ᴿ▸ s' → t ⟦ r ⟧▸ t' → CI s × CR s t → AR s' t')
---  (CICI : {s s' : RawStateᴾ} → s ⟦ rᶜ ⟧ᴿ▸ s' → CI s → CI s')
---  (CRCR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ rᶜ ⟧ᴿ▸ s' → t ⟦ rᶜ ⟧▸ t' → CI s × CR s t → CR s' t')
---  (read : RawStateᴾ → Addr → Data)
---  (ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
---  (Init : RawStateᴾ → Set)
---  (init : {s : RawStateᴾ} → {{_ : Init s}} → ∃[ t ] (RI s × AR s t))
---  where
---
---  variable
---    rs    : RawStateᴾ
---    rs₁   : RawStateᴾ
---    rinv  : RI rs
---    cinv  : CI rs
---    rs'   : RawStateᴾ
---    rs''  : RawStateᴾ
---    rs''' : RawStateᴾ
---    rinv' : RI rs'
---    cinv' : CI rs'
---
---  _⟦_⟧ᴿ*▸_ = RTC _⟦_⟧ᴿ▸_
---
---  data Inv (rs : RawStateᴾ) : Set where
---    normal : RI rs → Inv rs
---    crash  : CI rs → Inv rs
---
---  Stateᴾ : Set
---  Stateᴾ = Σ[ rs ∈ RawStateᴾ ] Inv rs
---  unpack : Stateᴾ → RawStateᴾ
---  unpack = proj₁
---
---  variable
---    s    : Stateᴾ
---    s'   : Stateᴾ
---    s''  : Stateᴾ
---    s''' : Stateᴾ
---
---  data _⟦_⟧ᴾ▸_ : Stateᴾ → Action → Stateᴾ → Set where
---    w   : rs ⟦ w[ addr ↦ dat ] ⟧ᴿ▸ rs'  → (rs , normal rinv) ⟦ w[ addr ↦ dat ] ⟧ᴾ▸ (rs' , normal rinv')
---    wᶠ  : rs ⟦ wᶠ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ wᶠ ⟧ᴾ▸ (rs' , normal rinv')
---    f   : rs ⟦ f   ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ f  ⟧ᴾ▸ (rs' , normal rinv')
---    wᶜ  : rs ⟦ wᶜ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ wᶜ ⟧ᴾ▸ (rs' , crash  cinv')
---    fᶜ  : rs ⟦ fᶜ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ fᶜ ⟧ᴾ▸ (rs' , crash  cinv')
---    rᶜ  : rs ⟦ rᶜ  ⟧ᴿ▸ rs'              → (rs , crash  cinv) ⟦ rᶜ ⟧ᴾ▸ (rs' , crash  cinv')
---    r   : rs ⟦ r   ⟧ᴿ▸ rs'              → (rs , crash  cinv) ⟦ r  ⟧ᴾ▸ (rs' , normal rinv')
---    cp  : rs ⟦ cp  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ cp ⟧ᴾ▸ (rs' , normal rinv')
---    er  : rs ⟦ er  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ er ⟧ᴾ▸ (rs' , normal rinv')
---    cpᶜ : rs ⟦ cpᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ cpᶜ ⟧ᴾ▸ (rs' , crash cinv')
---    erᶜ : rs ⟦ erᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ erᶜ ⟧ᴾ▸ (rs' , crash cinv')
---
---  _⟦_⟧ᴾ*▸_ = RTC _⟦_⟧ᴾ▸_
---
---  data SR : Stateᴾ → State → Set where
---    ar : AR rs t → SR (rs , normal rinv) t
---    cr : CR rs t → SR (rs , crash  cinv) t
---
---  simSR : SR s t → s ⟦ ac ⟧ᴾ▸ s' → ∃[ t' ] (t ⟦ ac ⟧▸ t' × SR s' t')
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (w {addr = addr} {dat = dat} rs▸rs') =
---    let (t' , t▸t') = runSpec t w[ addr ↦ dat ]
---    in   t' , t▸t' , ar (ARAR w rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (wᶠ rs▸rs') =
---    let (t' , t▸t') = runSpec t wᶠ
---    in   t' , t▸t' , ar (ARAR wᶠ rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (f rs▸rs')  =
---    let (t' , t▸t') = runSpec t f
---    in   t' , t▸t' , ar (ARAR f rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (wᶜ rs▸rs') =
---    let (t' , t▸t') = runSpec t wᶜ
---    in   t' , t▸t' , cr (ARCR wᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (fᶜ rs▸rs') =
---    let (t' , t▸t') = runSpec t fᶜ
---    in   t' , t▸t' , cr (ARCR fᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , crash  cinv} {t} (cr CR-rs-t) (rᶜ rs▸rs') =
---    let (t' , t▸t') = runSpec t rᶜ
---    in   t' , t▸t' , cr (CRCR    rs▸rs' t▸t' (cinv , CR-rs-t))
---  simSR {s , crash  cinv} {t} (cr CR-rs-t) (r rs▸rs')  =
---    let (t' , t▸t') = runSpec t r
---    in   t' , t▸t' , ar (CRAR    rs▸rs' t▸t' (cinv , CR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (cp rs▸rs')  =
---    let (t' , t▸t') = runSpec t cp
---    in   t' , t▸t' , ar (ARAR cp rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (er rs▸rs')  =
---    let (t' , t▸t') = runSpec t er
---    in   t' , t▸t' , ar (ARAR er rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (cpᶜ rs▸rs') =
---    let (t' , t▸t') = runSpec t cpᶜ
---    in   t' , t▸t' , cr (ARCR cpᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
---  simSR {s , normal rinv} {t} (ar AR-rs-t) (erᶜ rs▸rs') =
---    let (t' , t▸t') = runSpec t erᶜ
---    in   t' , t▸t' , cr (ARCR erᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
---
---  runSimSR : SR s t → s ⟦ ef ⟧ᴾ*▸ s' → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × SR s' t')
---  runSimSR SR-s-t ∅                 = _ , ∅ , SR-s-t
---  runSimSR SR-s-t (s*▸s'' • s''▸s') =
---    let (t'' , t*▸t'' , SR-s''-t'') = runSimSR SR-s-t s*▸s''
---        (t'  , t''▸t' , SR-s'-t'  ) = simSR SR-s''-t'' s''▸s'
---    in  _ , (t*▸t'' • t''▸t') , SR-s'-t'
---
-----original-lemma1 : Init rs → AR rs t → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t' ] (t ⟦ ef ⟧*▸ t')
---
---  lemma1-wᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
---                SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
---                read (unpack s') ≐ read (unpack s'')
---  lemma1-wᶜ SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
---       with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
---  ...     | t'  , t*▸t'   , ar AR-rs'-t'
---       with runSimSR (ar AR-rs'-t') (s'*▸ • r {rinv' = rinv''} ▸rs'')
---  ...     | t'' , t'*▸t'' , ar AR-rs''-t'' = ObsEquiv (rinv' , AR-rs'-t')            <≐>
---                                             lemma-2-wᶜ t*▸t' t'*▸t'' <≐>
---                                             sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
---
+
+lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} {frag-w frag-rᶜ} {eflist flist-w flist-rᶜ}
+             {prf₁ : F2L ef eflist} {prf₂ : F2L frag-w flist-w} {prf₃ : F2L frag-rᶜ flist-rᶜ}
+           → {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}}
+           → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
+           → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
+lemma-2-fᶜ {prf₂ = prf₂} {prf₃ = prf₃} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
+      with splitRTC {splitOn = ([] • fᶜ)} s₂▸s
+...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ $ vsᶜ <≐> idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂ ) s₂'▸s <≐> sv
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl)    <≐>
+                                                    idemₛ {prf = prf₂} (mapAll n→sp all₁) s₁▸s₂ <≐> ssᶜ <≐>
+                                                    idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
+
+module SnapshotConsistency
+  (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
+  (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
+  (RI CI : RawStateᴾ → Set)
+  (AR CR : RawStateᴾ → State → Set)
+  (Pre : RawStateᴾ → Action → Set )
+  (RIRI : {s s' : RawStateᴾ} {ac : Action} → Regular×Snapshot ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
+  (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → Regular×Snapshot ac
+        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
+  (RICI : {s s' : RawStateᴾ} {ac : Action} → RegularCrash ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → CI s')
+  (ARCR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → RegularCrash ac
+        → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → CR s' t')
+  (CIRI : {s s' : RawStateᴾ} → s ⟦ r ⟧ᴿ▸ s' → CI s → RI s')
+  (CRAR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ r ⟧ᴿ▸ s' → t ⟦ r ⟧▸ t' → CI s × CR s t → AR s' t')
+  (CICI : {s s' : RawStateᴾ} → s ⟦ rᶜ ⟧ᴿ▸ s' → CI s → CI s')
+  (CRCR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ rᶜ ⟧ᴿ▸ s' → t ⟦ rᶜ ⟧▸ t' → CI s × CR s t → CR s' t')
+  (read : RawStateᴾ → Addr → Data)
+  (ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
+  (Init : RawStateᴾ → Set)
+  (init : {s : RawStateᴾ} → {{_ : Init s}} → ∃[ t ] (RI s × AR s t))
+  where
+
+  variable
+    rs    : RawStateᴾ
+    rs₁   : RawStateᴾ
+    rinv  : RI rs
+    cinv  : CI rs
+    rs'   : RawStateᴾ
+    rs''  : RawStateᴾ
+    rs''' : RawStateᴾ
+    rinv' : RI rs'
+    cinv' : CI rs'
+
+  _⟦_⟧ᴿ*▸_ = RTC _⟦_⟧ᴿ▸_
+
+  data Inv (rs : RawStateᴾ) : Set where
+    normal : RI rs → Inv rs
+    crash  : CI rs → Inv rs
+
+  Stateᴾ : Set
+  Stateᴾ = Σ[ rs ∈ RawStateᴾ ] Inv rs
+  unpack : Stateᴾ → RawStateᴾ
+  unpack = proj₁
+
+  variable
+    s    : Stateᴾ
+    s'   : Stateᴾ
+    s''  : Stateᴾ
+    s''' : Stateᴾ
+
+  data _⟦_⟧ᴾ▸_ : Stateᴾ → Action → Stateᴾ → Set where
+    w   : rs ⟦ w[ addr ↦ dat ] ⟧ᴿ▸ rs'  → (rs , normal rinv) ⟦ w[ addr ↦ dat ] ⟧ᴾ▸ (rs' , normal rinv')
+    wᶠ  : rs ⟦ wᶠ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ wᶠ ⟧ᴾ▸ (rs' , normal rinv')
+    f   : rs ⟦ f   ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ f  ⟧ᴾ▸ (rs' , normal rinv')
+    wᶜ  : rs ⟦ wᶜ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ wᶜ ⟧ᴾ▸ (rs' , crash  cinv')
+    fᶜ  : rs ⟦ fᶜ  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ fᶜ ⟧ᴾ▸ (rs' , crash  cinv')
+    rᶜ  : rs ⟦ rᶜ  ⟧ᴿ▸ rs'              → (rs , crash  cinv) ⟦ rᶜ ⟧ᴾ▸ (rs' , crash  cinv')
+    r   : rs ⟦ r   ⟧ᴿ▸ rs'              → (rs , crash  cinv) ⟦ r  ⟧ᴾ▸ (rs' , normal rinv')
+    cp  : rs ⟦ cp  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ cp ⟧ᴾ▸ (rs' , normal rinv')
+    er  : rs ⟦ er  ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ er ⟧ᴾ▸ (rs' , normal rinv')
+    cpᶜ : rs ⟦ cpᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ cpᶜ ⟧ᴾ▸ (rs' , crash cinv')
+    erᶜ : rs ⟦ erᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ erᶜ ⟧ᴾ▸ (rs' , crash cinv')
+
+  _⟦_⟧ᴾ*▸_ = RTC _⟦_⟧ᴾ▸_
+
+  data SR : Stateᴾ → State → Set where
+    ar : AR rs t → SR (rs , normal rinv) t
+    cr : CR rs t → SR (rs , crash  cinv) t
+
+  simSR : SR s t → s ⟦ ac ⟧ᴾ▸ s' → ∃[ t' ] (t ⟦ ac ⟧▸ t' × SR s' t')
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (w {addr = addr} {dat = dat} rs▸rs') =
+    let (t' , t▸t') = runSpec t w[ addr ↦ dat ]
+    in   t' , t▸t' , ar (ARAR w rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (wᶠ rs▸rs') =
+    let (t' , t▸t') = runSpec t wᶠ
+    in   t' , t▸t' , ar (ARAR wᶠ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (f rs▸rs')  =
+    let (t' , t▸t') = runSpec t f
+    in   t' , t▸t' , ar (ARAR f rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (wᶜ rs▸rs') =
+    let (t' , t▸t') = runSpec t wᶜ
+    in   t' , t▸t' , cr (ARCR wᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (fᶜ rs▸rs') =
+    let (t' , t▸t') = runSpec t fᶜ
+    in   t' , t▸t' , cr (ARCR fᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , crash  cinv} {t} (cr CR-rs-t) (rᶜ rs▸rs') =
+    let (t' , t▸t') = runSpec t rᶜ
+    in   t' , t▸t' , cr (CRCR    rs▸rs' t▸t' (cinv , CR-rs-t))
+  simSR {s , crash  cinv} {t} (cr CR-rs-t) (r rs▸rs')  =
+    let (t' , t▸t') = runSpec t r
+    in   t' , t▸t' , ar (CRAR    rs▸rs' t▸t' (cinv , CR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (cp rs▸rs')  =
+    let (t' , t▸t') = runSpec t cp
+    in   t' , t▸t' , ar (ARAR cp rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (er rs▸rs')  =
+    let (t' , t▸t') = runSpec t er
+    in   t' , t▸t' , ar (ARAR er rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (cpᶜ rs▸rs') =
+    let (t' , t▸t') = runSpec t cpᶜ
+    in   t' , t▸t' , cr (ARCR cpᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+  simSR {s , normal rinv} {t} (ar AR-rs-t) (erᶜ rs▸rs') =
+    let (t' , t▸t') = runSpec t erᶜ
+    in   t' , t▸t' , cr (ARCR erᶜ rs▸rs' t▸t' (rinv , AR-rs-t))
+
+  runSimSR : SR s t → s ⟦ ef ⟧ᴾ*▸ s' → ∃[ t' ] (t ⟦ ef ⟧*▸ t' × SR s' t')
+  runSimSR SR-s-t ∅                 = _ , ∅ , SR-s-t
+  runSimSR SR-s-t (s*▸s'' • s''▸s') =
+    let (t'' , t*▸t'' , SR-s''-t'') = runSimSR SR-s-t s*▸s''
+        (t'  , t''▸t' , SR-s'-t'  ) = simSR SR-s''-t'' s''▸s'
+    in  _ , (t*▸t'' • t''▸t') , SR-s'-t'
+
+--original-lemma1 : Init rs → AR rs t → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t' ] (t ⟦ ef ⟧*▸ t')
+
+  lemma1-wᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
+              {prf₁ : F2L ef₁ eflist} {prf₂ : F2L ef₂ flist-w} {prf₃ : F2L ef₃ flist-rᶜ}
+              {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}} →
+              SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
+              read (unpack s') ≐ read (unpack s'')
+  lemma1-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+       with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
+  ...     | t'  , t*▸t'   , ar AR-rs'-t'
+       with runSimSR (ar AR-rs'-t') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+  ...     | t'' , t'*▸t'' , ar AR-rs''-t'' = ObsEquiv (rinv' , AR-rs'-t')                                       <≐>
+                                             lemma-2-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} t*▸t' t'*▸t'' <≐>
+                                             sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
+
 --  lemma1-fᶜ : {{_ : All Regular×Snapshot ef₁}} → {{_ : All Regular ef₂}} → {{_ : All RecoveryCrash ef₃}} →
 --                SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
 --                read (unpack s'') ≐ read (unpack s''') ⊎ read (unpack s') ≐ read (unpack s''')
