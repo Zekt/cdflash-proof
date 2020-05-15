@@ -170,7 +170,8 @@ data Fragment : Set where
 
 data F≅L : Fragment → List Action → Set where
   empty : F≅L [] []
-  f2l   : {x : Action} → {ef : Fragment} → {la : List Action} → F≅L ef la →  F≅L (ef • x) (x ∷ la)
+  f2l   : {x : Action} → {ef : Fragment} → {la : List Action}
+        → F≅L ef la →  F≅L (ef • x) (x ∷ la)
 
 data Fragments : Set where
   []  : Fragments
@@ -178,7 +179,8 @@ data Fragments : Set where
 
 data Fs≅L : Fragments → List Fragment → Set where
   empty : Fs≅L [] []
-  fs2l  : {ef : Fragment} → {efs : Fragments} → {lf : List Fragment} → Fs≅L efs lf → Fs≅L (efs ⊡ ef) (ef ∷ lf)
+  fs2l  : {ef : Fragment} {efs : Fragments} → {lf : List Fragment}
+        → Fs≅L efs lf → Fs≅L (efs ⊡ ef) (ef ∷ lf)
 
 variable
   ef  : Fragment
@@ -196,7 +198,8 @@ data All {A : Set} (P : A → Set) : List A → Set where
   []  : All P []
   _∷_ : ∀ {x : A} {xs : List A} → All P xs → P x → All P (x ∷ xs)
 
-mapAll : {A : Set} {P Q : A → Set} {xs : List A} → ({x : A} → P x → Q x) → All P xs → All Q xs
+mapAll : {A : Set} {P Q : A → Set} {xs : List A}
+       → ({x : A} → P x → Q x) → All P xs → All Q xs
 mapAll pq []        = []
 mapAll pq (all ∷ x) = (mapAll pq all) ∷ (pq x)
 
@@ -234,7 +237,8 @@ idemₛ : {prf : F≅L frag flist} → All StbP flist
       → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
       → State.stable s ≐ State.stable s'
 idemₛ {prf = empty} [] ∅ = λ{_ → refl}
-idemₛ {prf = f2l prf} (all ∷ x) (s2s'' • s''2s') = idemₛ {prf = prf} all s2s'' <≐> StbP.preserve x s''2s'
+idemₛ {prf = f2l prf} (all ∷ x) (s2s'' • s''2s') =
+  idemₛ {prf = prf} all s2s'' <≐> StbP.preserve x s''2s'
 
 n→sp : Regular ac → StbP ac
 n→sp w  = stb-w
@@ -262,25 +266,28 @@ lemma2-2-f : ∀ {s s' : State} {ef : Fragment} → s ⟦ ef • f ⟧*▸ s' �
 lemma2-2-f (s▸s' • (f vv vs _)) = sym-≐ vv <≐> vs
 
 lemma-2-wᶜ : ∀ {s₀ s' s : State} {ef frag-w frag-rᶜ} {eflist flist-w flist-rᶜ}
-             {prf₁ : F≅L ef eflist} {prf₂ : F≅L frag-w flist-w} {prf₃ : F≅L frag-rᶜ flist-rᶜ}
-           → {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}}
+             {prf₁ : F≅L ef eflist}              {prf₂ : F≅L frag-w flist-w} {prf₃ : F≅L frag-rᶜ flist-rᶜ}
+           → {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s' → s' ⟦ frag-w • wᶜ ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s' ≐ State.volatile s
-lemma-2-wᶜ {prf₂ = prf₂} {prf₃ = prf₃} s₀▸s' (s'▸s • r sv ss _) = lemma2-2-f s₀▸s'                          <≐>
-                                                                  lemma2-1 {prf₁ = prf₂} {prf₂ = prf₃} s'▸s <≐>
-                                                                  sv
+lemma-2-wᶜ {prf₂ = prf₂} {prf₃ = prf₃} s₀▸s' (s'▸s • r sv ss _) =
+  lemma2-2-f s₀▸s'                          <≐>
+  lemma2-1 {prf₁ = prf₂} {prf₂ = prf₃} s'▸s <≐>
+  sv
 
 lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} {frag-w frag-rᶜ} {eflist flist-w flist-rᶜ}
              {prf₁ : F≅L ef eflist} {prf₂ : F≅L frag-w flist-w} {prf₃ : F≅L frag-rᶜ flist-rᶜ}
-           → {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}}
+           → {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}}
            → s₀ ⟦ ef • f ⟧*▸ s₁ → s₁ ⟦ frag-w ⟧*▸ s₂ → s₂ ⟦ ([] • fᶜ) ⊙ frag-rᶜ • r ⟧*▸ s
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
 lemma-2-fᶜ {prf₂ = prf₂} {prf₃ = prf₃} {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
       with splitRTC {splitOn = ([] • fᶜ)} s₂▸s
-...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s = inj₁ $ vsᶜ <≐> idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂ ) s₂'▸s <≐> sv
-...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s = inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl)    <≐>
-                                                    idemₛ {prf = prf₂} (mapAll n→sp all₁) s₁▸s₂ <≐> ssᶜ <≐>
-                                                    idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
+...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s =
+             inj₁ $ vsᶜ <≐> idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂ ) s₂'▸s <≐> sv
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s =
+             inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl)     <≐>
+             idemₛ {prf = prf₂} (mapAll n→sp all₁)  s₁▸s₂ <≐> ssᶜ <≐>
+             idemₛ {prf = prf₃} (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
 
 module SnapshotConsistency
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
@@ -398,21 +405,23 @@ module SnapshotConsistency
 --original-lemma1 : Init rs → AR rs t → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t' ] (t ⟦ ef ⟧*▸ t')
 
   lemma1-wᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
-              {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
-              {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}} →
+              {prf₁ : F≅L ef₁ eflist}             {prf₂ : F≅L ef₂ flist-w}    {prf₃ : F≅L ef₃ flist-rᶜ}
+              {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
               SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s'' →
               read (unpack s') ≐ read (unpack s'')
-  lemma1-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
+  lemma1-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
+            SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs') (s'*▸ • r {rinv' = rinv''} ▸rs'')
        with runSimSR SR-s-t (s*▸ • f {rinv' = rinv'} ▸rs')
   ...     | t'  , t*▸t'   , ar AR-rs'-t'
        with runSimSR (ar AR-rs'-t') (s'*▸ • r {rinv' = rinv''} ▸rs'')
-  ...     | t'' , t'*▸t'' , ar AR-rs''-t'' = ObsEquiv (rinv' , AR-rs'-t')                                       <≐>
-                                             lemma-2-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} t*▸t' t'*▸t'' <≐>
-                                             sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
+  ...     | t'' , t'*▸t'' , ar AR-rs''-t'' =
+              ObsEquiv (rinv' , AR-rs'-t')                                       <≐>
+              lemma-2-wᶜ {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} t*▸t' t'*▸t'' <≐>
+              sym-≐ (ObsEquiv (rinv'' , AR-rs''-t''))
 
-  lemma1-fᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
-              {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
-              {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}} →
+  lemma1-fᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action}
+                {prf₁ : F≅L ef₁ eflist}             {prf₂ : F≅L ef₂ flist-w}    {prf₃ : F≅L ef₃ flist-rᶜ}
+                {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
               SR s t → s ⟦ ef₁ • f ⟧ᴾ*▸ s' → s' ⟦ ef₂ ⟧ᴾ*▸ s'' →  s'' ⟦ [] • fᶜ ⊙ ef₃ • r ⟧ᴾ*▸ s''' →
               read (unpack s'') ≐ read (unpack s''') ⊎ read (unpack s') ≐ read (unpack s''')
   lemma1-fᶜ {ef₃ = ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
@@ -458,7 +467,8 @@ module SnapshotConsistency
   lift-n : ∀ {ef : Fragment} {eflist : List Action} {prf : F≅L ef eflist}
              {{_ : All Regular eflist}} → rs ⟦ ef ⟧ᴿ*▸ rs'
          → ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-n {prf = prf} {{all}} rs*▸rs' = lift-n×s {prf = prf} {{(mapAll (λ{w → w; wᶠ → wᶠ; cp → cp; er → er}) all)}} rs*▸rs'
+  lift-n {prf = prf} {{all}} rs*▸rs' =
+    lift-n×s {prf = prf} {{(mapAll (λ{w → w; wᶠ → wᶠ; cp → cp; er → er}) all)}} rs*▸rs'
 
   lift-rᶜ : ∀ {ef : Fragment} {eflist : List Action} {prf : F≅L ef eflist}
             {{_ : All RecoveryCrash eflist}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
@@ -469,30 +479,39 @@ module SnapshotConsistency
     in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
 
   data OneRecovery : Fragment → Set where
-    or : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action}
+    wᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action}
            {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
        → OneRecovery (ef₁ • f ⊙ ef₂ • wᶜ ⊙ ef₃ • r)
---  --Behavioral Correctness on Multi-recovery Fragments.
-  data Trailing : Fragment → Set where
-    tr : ∀ {ef : Fragment} {eflist : List Action} {prf₁ : F≅L ef eflist}
-           {{_ : All Regular×Snapshot eflist}}
-       → Trailing ef
+    fᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action}
+           {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
+       → OneRecovery (ef₁ • f ⊙ ef₂ • fᶜ ⊙ ef₃ • r)
 
-  --BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment}
-  --                          {{_ : All OneRecovery efslist}} {{_ : Trailing ef}}
-  --                        → {{_ : Init rs}} → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
-  --                        → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' → read rs' ≐ State.volatile t'))
-  --BehavioralCorrectness (rs▸ ⊡ ▸rs') = let init-ri , init-t , init-ef = initialisation
-  --                                     in   init-t , {!!} , {!!}
+  lem-1r : ∀ {ef : Fragment} {eflist : List Action}
+           {prf : F≅L ef eflist} {{_ : OneRecovery ef}}
+         → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t ] (read rs ≐ State.volatile t) → ∃[ t' ] (read rs' ≐ State.volatile t')
+  lem-1r (rs2rs' • x) (t , obs) = {!   !}
+
+  --Behavioral Correctness on Multi-recovery Fragments.
+  BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment} {eflist : List Action}
+                            {prf₁ : Fs≅L efs efslist}       {prf₂ : F≅L ef eflist}
+                            {{_ : All OneRecovery efslist}} {{_ : All Regular×Snapshot eflist}}
+                          → {{_ : Init rs}} → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
+                          → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' → read rs' ≐ State.volatile t'))
+  --BehavioralCorrectness (rs▸ ⊡ ∅) = {!   !}
+  --BehavioralCorrectness {prf₂ = f2l prf₂} {{all₁}} {{all₂ ∷ rsx}} (rs▸ ⊡ (▸rs' • step)) = {!   !}
+  BehavioralCorrectness {prf₂ = prf₂} (rs▸ ⊡ ▸rs') = let init-ri , init-t , init-ef = initialisation
+                                                         rinv'   , smt              = lift-n×s {prf = prf₂} ▸rs'
+                                                     in  init-t , {!   !} , λ{ x → ObsEquiv {!   !} }
 
 --   ef₁   f   ef₂    wᶜ    ef₃    r
 -- rs   rs₁ rs'   rs'₁  rs'₂   rs'₃ rs''
   theorem-wᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
                {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
-               {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}} →
+               {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
                {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
                read rs' ≐ read rs''
-  theorem-wᶜ {ef₁ = ef₁} {ef₂ = ef₂} {ef₃ = ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} {{all₁}} rs*▸rs' (rs'▸rs'₃ • r▸rs'')
+  theorem-wᶜ {ef₁ = ef₁} {ef₂ = ef₂} {ef₃ = ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
+             {{all₁}} rs*▸rs' (rs'▸rs'₃ • r▸rs'')
         with splitRTC {splitOn = ef₂ • wᶜ} rs'▸rs'₃
   ...      | rs'₁ , rs'▸rs'₁ • wᶜ▸rs'₂ , rs'₁▸rs'₃ =
                let init-ri , init-t , init-ef = initialisation
@@ -507,10 +526,11 @@ module SnapshotConsistency
 ---- rs   rs₁ rs'   rs''  rs''₁   rs''₂ rs'''
   theorem-fᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
                {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
-               {{_ : All Regular×Snapshot eflist}} → {{_ : All Regular flist-w}} → {{_ : All RecoveryCrash flist-rᶜ}} →
+               {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
                {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
                read rs'' ≐ read rs''' ⊎ read rs' ≐ read rs'''
-  theorem-fᶜ {ef₁} {ef₂} {ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃} {{all₁}} rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
+  theorem-fᶜ {ef₁} {ef₂} {ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
+             {{all₁}} rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
         with splitRTC {splitOn = [] • fᶜ} rs''▸rs''₂
   ...      | rs''₁ , ∅ • fᶜ▸rs''₁ , rs''₁▸rs''₂
         with let init-ri , init-t , init-ef = initialisation
