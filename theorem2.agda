@@ -311,7 +311,7 @@ module SnapshotConsistency
   (read : RawStateᴾ → Addr → Data)
   (ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
   (Initᴾ : RawStateᴾ → Set)
-  (initᵖ : {s : RawStateᴾ} → (_ : Initᴾ s) → (_ : Init t) → ∃[ t ] (RI s × AR s t))
+  (initᴾ : {s : RawStateᴾ} → {_ : Initᴾ s} → ∃[ t ] (RI s × AR s t))
   where
 
   variable
@@ -443,8 +443,8 @@ module SnapshotConsistency
   ...  | inj₂ fail = inj₂ $ ObsEquiv (rinv'  , AR-rs'-t')   <≐>
                             fail <≐> sym-≐ (ObsEquiv (rinv''' , AR-rs'''-t'''))
 
-  initialisation : {{_ : Init rs}} → ∃[ rinv ] ∃[ t ] SR (rs , normal rinv) t
-  initialisation = let (t , RI-rs , AR-rs-t) = init
+  initialisation : {{_ : Initᴾ rs}} → ∃[ rinv ] ∃[ t ] SR (rs , normal rinv) t
+  initialisation = let (t , RI-rs , AR-rs-t) = initᴾ
                    in  RI-rs , t , ar AR-rs-t
 
   lift-n×s : ∀ {ef : Fragment} {eflist : List Action} {prf : F≅L ef eflist}
@@ -496,14 +496,14 @@ module SnapshotConsistency
 
   --Behavioral Correctness on Multi-recovery Fragments.
 
-  data BC : Fragments → Set where
-    bc : (efs : Fragments) → Initᴾ rs → Init t → rs ⦅ efs ⦆ rs' → t ⦅ efs ⦆ t' → ( Regular ac → read rs' ≐ State.volatile t')
-       → (∀ (efs' : Fragments) → Prefix efs' efs → BC efs') → BC efs
-  BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment} {eflist : List Action}
-                            {prf₁ : Fs≅L efs efslist}       {prf₂ : F≅L ef eflist}
-                            {{_ : All OneRecovery efslist}} {{_ : All Regular×Snapshot eflist}}
-                          → (_ : Init rs) → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
-                          → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' × read rs' ≐ State.volatile t'))
+  --data BC : Fragments → Set where
+  --  bc : (efs : Fragments) → Initᴾ rs → Init t → rs ⦅ efs ⦆ rs' → t ⦅ efs ⦆ t' → ( Regular ac → read rs' ≐ State.volatile t')
+  --     → (∀ (efs' : Fragments) → Prefix efs' efs → BC efs') → BC efs
+  --BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment} {eflist : List Action}
+  --                          {prf₁ : Fs≅L efs efslist}       {prf₂ : F≅L ef eflist}
+  --                          {{_ : All OneRecovery efslist}} {{_ : All Regular×Snapshot eflist}}
+  --                        → (_ : Init rs) → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
+  --                        → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' × read rs' ≐ State.volatile t'))
   --BehavioralCorrectness (rs▸ ⊡ ∅) = {!   !}
   --BehavioralCorrectness {prf₂ = f2l prf₂} {{all₁}} {{all₂ ∷ rsx}} (rs▸ ⊡ (▸rs' • step)) = {!   !}
   --BehavioralCorrectness {prf₂ = prf₂} (rs▸ ⊡ ▸rs') = let init-ri , init-t , init-ef = initialisation
@@ -515,7 +515,7 @@ module SnapshotConsistency
   theorem-wᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
                {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
                {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
-               {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
+               {{_ : Initᴾ rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ • wᶜ ⊙ ef₃ • r ⟧ᴿ*▸ rs'' →
                read rs' ≐ read rs''
   theorem-wᶜ {ef₁ = ef₁} {ef₂ = ef₂} {ef₃ = ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
              {{all₁}} rs*▸rs' (rs'▸rs'₃ • r▸rs'')
@@ -534,7 +534,7 @@ module SnapshotConsistency
   theorem-fᶜ : ∀ {ef₁ ef₂ ef₃ : Fragment} {eflist flist-w flist-rᶜ : List Action} →
                {prf₁ : F≅L ef₁ eflist} {prf₂ : F≅L ef₂ flist-w} {prf₃ : F≅L ef₃ flist-rᶜ}
                {{_ : All Regular×Snapshot eflist}} {{_ : All Regular flist-w}} {{_ : All RecoveryCrash flist-rᶜ}} →
-               {{_ : Init rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
+               {{_ : Initᴾ rs}} → rs ⟦ ef₁ • f ⟧ᴿ*▸ rs' → rs' ⟦ ef₂ ⟧ᴿ*▸ rs'' → rs'' ⟦ ([] • fᶜ) ⊙ ef₃ • r ⟧ᴿ*▸ rs''' →
                read rs'' ≐ read rs''' ⊎ read rs' ≐ read rs'''
   theorem-fᶜ {ef₁} {ef₂} {ef₃} {prf₁ = prf₁} {prf₂ = prf₂} {prf₃ = prf₃}
              {{all₁}} rs*▸rs' rs'▸rs'' (rs''▸rs''₂ • r▸rs''')
