@@ -9,7 +9,7 @@ open import Data.List using (List; []; [_]; _∷_; _∷ʳ_; _++_)
 open import Data.List.Reverse using (Reverse; reverseView)
 open import Function using (_$_)
 
-module theorem2 (Addr : Set) (_≟_ : Addr → Addr → Bool) (Data : Set) (MAX_WCNT : ℕ)where
+module theorem2 (Addr : Set) (_≟_ : Addr → Addr → Bool) (Data : Set) (defaultData : Data) (MAX_WCNT : ℕ)where
 
 variable
   addr : Addr
@@ -83,6 +83,9 @@ record State : Set where
     volatile : Addr → Data
     stable   : Addr → Data
     w-count  : ℕ
+
+data Init : State → Set where
+  init : ∀ {s : State} → (∀ (addr : Addr) → (State.stable s addr ≡ defaultData)) → Init s
 
 variable
   t  : State
@@ -307,8 +310,8 @@ module SnapshotConsistency
   (CRCR : {s s' : RawStateᴾ} {t t' : State} → s ⟦ rᶜ ⟧ᴿ▸ s' → t ⟦ rᶜ ⟧▸ t' → CI s × CR s t → CR s' t')
   (read : RawStateᴾ → Addr → Data)
   (ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
-  (Init : RawStateᴾ → Set)
-  (init : {s : RawStateᴾ} → {{_ : Init s}} → ∃[ t ] (RI s × AR s t))
+  (Initᴾ : RawStateᴾ → Set)
+  (initᵖ : {s : RawStateᴾ} → (_ : Initᴾ s) → (_ : Init t) → ∃[ t ] (RI s × AR s t))
   where
 
   variable
@@ -488,20 +491,24 @@ module SnapshotConsistency
 
   lem-1r : ∀ {ef : Fragment} {eflist : List Action}
            {prf : F≅L ef eflist} {{_ : OneRecovery ef}}
-         → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t ] (read rs ≐ State.volatile t) → ∃[ t' ] (read rs' ≐ State.volatile t')
+         → rs ⟦ ef ⟧ᴿ*▸ rs' → ∃[ t ] (AR rs t) → ∃[ t' ] (AR rs' t')
   lem-1r (rs2rs' • x) (t , obs) = {!   !}
 
   --Behavioral Correctness on Multi-recovery Fragments.
+
+  data BC : Fragments → Set where
+    bc : (efs : Fragments) → Initᴾ rs → Init t → rs ⦅ efs ⦆ rs' → t ⦅ efs ⦆ t' → ( Regular ac → read rs' ≐ State.volatile t')
+       → (∀ (efs' : Fragments) → Prefix efs' efs → BC efs') → BC efs
   BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment} {eflist : List Action}
                             {prf₁ : Fs≅L efs efslist}       {prf₂ : F≅L ef eflist}
                             {{_ : All OneRecovery efslist}} {{_ : All Regular×Snapshot eflist}}
-                          → {{_ : Init rs}} → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
-                          → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' → read rs' ≐ State.volatile t'))
+                          → (_ : Init rs) → rs ⦅ efs ⊡ ef ⦆ᴿ*▸ rs'
+                          → ∃[ t ] (∃[ t' ] (t ⦅ efs ⊡ ef ⦆*▸ t' × read rs' ≐ State.volatile t'))
   --BehavioralCorrectness (rs▸ ⊡ ∅) = {!   !}
   --BehavioralCorrectness {prf₂ = f2l prf₂} {{all₁}} {{all₂ ∷ rsx}} (rs▸ ⊡ (▸rs' • step)) = {!   !}
-  BehavioralCorrectness {prf₂ = prf₂} (rs▸ ⊡ ▸rs') = let init-ri , init-t , init-ef = initialisation
-                                                         rinv'   , smt              = lift-n×s {prf = prf₂} ▸rs'
-                                                     in  init-t , {!   !} , λ{ x → ObsEquiv {!   !} }
+  --BehavioralCorrectness {prf₂ = prf₂} (rs▸ ⊡ ▸rs') = let init-ri , init-t , init-ef = initialisation
+  --                                                       rinv'   , smt              = lift-n×s {prf = prf₂} ▸rs'
+  --                                                   in  init-t , {!   !} , λ{ x → ObsEquiv {!   !} }
 
 --   ef₁   f   ef₂    wᶜ    ef₃    r
 -- rs   rs₁ rs'   rs'₁  rs'₂   rs'₃ rs''
