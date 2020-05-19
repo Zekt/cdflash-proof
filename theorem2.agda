@@ -466,8 +466,7 @@ module SnapshotConsistency
     let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
     in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
 
-  lift-n : ∀ {ef : Fragment}
-             {{_ : All Regular ef}} → rs ⟦ ef ⟧ᴿ*▸ rs'
+  lift-n : ∀ {ef : Fragment} {{_ : All Regular ef}} → rs ⟦ ef ⟧ᴿ*▸ rs'
          → ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
   lift-n {{all}} rs*▸rs' =
     lift-n×s {{(mapAll (λ{w → w; wᶠ → wᶠ; cp → cp; er → er}) all)}} rs*▸rs'
@@ -492,9 +491,10 @@ module SnapshotConsistency
 
   --Behavioral Correctness on Multi-recovery Fragments.
 
-  --data BC : Fragments → Set where
-  --  bc : (efs : Fragments) → Initᴾ rs → Init t → rs ⦅ efs ⦆ rs' → t ⦅ efs ⦆ t' → ( Regular ac → read rs' ≐ State.volatile t')
-  --     → (∀ (efs' : Fragments) → Prefix efs' efs → BC efs') → BC efs
+  data BC : Fragments → Set where
+    bc : {efs : Fragments} {ef : Fragment} {ac : Action} → {{_ : Initᴾ rs}} → {{_ : Init t}}
+       → rs ⦅ efs • (ef • ac) ⦆ᴿ*▸ rs' → t ⦅ efs • (ef • ac) ⦆*▸ t
+       → (Regular×Snapshot ac → read rs' ≐ State.volatile t') × BC (efs • ef) → BC (efs • (ef • ac))
   --BehavioralCorrectness : ∀ {efs : Fragments} {ef : Fragment} {efslist : List Fragment} {eflist : List Action}
   --                          {prf₁ : Fs≅L efs efslist}       {prf₂ : F≅L ef eflist}
   --                          {{_ : All OneRecovery efslist}} {{_ : All Regular×Snapshot eflist}}
