@@ -1,6 +1,6 @@
 open import Data.Bool using (Bool; true; false)
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; sym)
+open Eq using (_≡_; refl; sym; subst)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
 open import Data.Unit using (⊤; tt)
 open import Data.Nat using (ℕ; zero; suc; _≤_; _≥_; _>_)
@@ -220,16 +220,17 @@ data RTC {A S : Set} (R : S → A → S → Set) : S → SnocList A → S → Se
 _⟦_⟧*▸_ = RTC  _⟦_⟧▸_
 _⦅_⦆*▸_ = RTC _⟦_⟧*▸_
 
-splitRTC : {A S : Set} {R : S → A → S → Set} {s s' : S} → (splitOn : SnocList A) → {rest : SnocList A}
-         → RTC R s (splitOn ⊙ rest) s' → ∃[ s'' ] (RTC R s splitOn s'' × RTC R s'' rest s')
-splitRTC ef₁ {rest = []}                t = (_ , t , ∅)
-splitRTC ef₁ {rest = (ef₂ • ac)} (t • rr) = let (s'' , t₁ , t₂) = splitRTC ef₁ t
-                                            in  (s'' , t₁ , t₂ • rr)
-
 _++RTC_ : {A S : Set} {R : S → A → S → Set} {s t u : S} {ef₁ ef₂ : SnocList A}
         → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
 tc-s-t ++RTC ∅             = tc-s-t
 tc-s-t ++RTC (tc-t-u • rr) = (tc-s-t ++RTC tc-t-u) • rr
+
+splitRTC : {A S : Set} {R : S → A → S → Set} {s s' : S} → (splitOn : SnocList A) → {rest : SnocList A}
+         → ( fr : RTC R s (splitOn ⊙ rest) s') → Σ[ s'' ∈ S ] Σ[ fr₁ ∈ RTC R s splitOn s'' ] Σ[ fr₂ ∈ RTC R s'' rest s' ] (fr ≡ (fr₁ ++RTC fr₂))
+splitRTC ef₁ {rest = []}                t = (_ , t , ∅ , refl)
+splitRTC ef₁ {rest = (ef₂ • ac)} (t • rr) with splitRTC ef₁ t
+...                                       | s'' , t₁ , t₂ , refl = s'' , t₁ , t₂ • rr , refl
+
 
 -- split-++RTC : splitRTC (fr ++RTC fr')
 
@@ -269,7 +270,7 @@ lemma-2-wᶜ : ∀ {s₁ s₂ s₃ s₄ : State} {ef frag-w frag-rᶜ}
            → State.volatile s₂ ≐ State.volatile s₄
 lemma-2-wᶜ {{ all₁ }} {{ all₂ }} {{ all₃ }} s₁▸s₂ s₂▸s₃ (s₃▹ • r sv _ _)
       with splitRTC ([] • f) s₂▸s₃ | splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
-...      | s₂' , ∅ • (f vv vs _) , s₂'▸s₃ | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ =
+...      | s₂' , ∅ • (f vv vs _) , s₂'▸s₃ , _ | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
              vs <≐> idemₛ (mapAll n→sp  all₂) s₂'▸s₃  <≐>
              ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
 
@@ -279,9 +280,9 @@ lemma-2-fᶜ : ∀ {s₀ s₁ s₂ s : State} {ef frag-w frag-rᶜ}
            → State.volatile s₂ ≐ State.volatile s ⊎ State.volatile s₁ ≐ State.volatile s
 lemma-2-fᶜ {{_}} {{all₁}} {{all₂}} (s₀▸s₁ • f vv vs _) s₁▸s₂ (s₂▸s • r sv ss _)
       with splitRTC ([] • fᶜ) s₂▸s
-...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s =
+...      | s₂' , ∅ • fᶜ (inj₁ vsᶜ) , s₂'▸s , _ =
              inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₂ ) s₂'▸s <≐> sv
-...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s =
+...      | s₂' , ∅ • fᶜ (inj₂ ssᶜ) , s₂'▸s , _ =
              inj₂ $ lemma2-2-f (s₀▸s₁ • f vv vs refl) <≐>
              idemₛ (mapAll n→sp all₁)  s₁▸s₂ <≐> ssᶜ  <≐>
              idemₛ (mapAll rᶜ→sp all₂) s₂'▸s <≐> sv
@@ -306,6 +307,7 @@ module SnapshotConsistency
   (AR⇒ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
   (Initᴿ : RawStateᴾ → Set)
   (initᴿ : {s : RawStateᴾ} → {t : State} → {{_ : Initᴿ s}} → {{_ : Init t}} → (CI s × CR s t))
+  (t-init : Σ[ t ∈ State ] Init t)
   where
 
   variable
@@ -564,10 +566,10 @@ module SnapshotConsistency
        → 1RFrags (wᶜ all₁ all₂ all₃) (fr₁ ++RTC fr₂ ++RTC fr₃)
 
   view1R : {tr : Trace} (1r : OneRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → 1RFrags 1r fr
-  view1R (wᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr =
-    let s₃ , fr-l  , fr₃ = splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • wᶜ[ _ ↦ _ ] ⊙ tr₃ • r} fr
-        s₂ , fr₁   , fr₂ = splitRTC tr₁                    {rest = [] • f ⊙ tr₂} fr-l
-    in wᶜ {s₁ = s₁} {s₂ = s₂} {s₃ = s₃} {s₄ = s₄} fr₁ {!fr₂!} {!!}
+  view1R 1r@(wᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr =
+    let s₃ , fr-l  , fr₃ , eq₁ = splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • wᶜ[ _ ↦ _ ] ⊙ tr₃ • r} fr
+        s₂ , fr₁   , fr₂ , eq₂ = splitRTC tr₁                    {rest = [] • f ⊙ tr₂} fr-l
+    in subst (1RFrags 1r) {!!} (wᶜ {s₁ = s₁} {s₂ = s₂} {s₃ = s₃} {s₄ = s₄} fr₁ fr₂ fr₃)
 
   Conformance-1R : {tr : Trace} (1r : OneRecovery tr)
                  → {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r frP
@@ -586,7 +588,7 @@ module SnapshotConsistency
   viewMR : {tr : Trace} (mr : MultiRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → MRFrags mr fr
   viewMR (init all) fr = init fr
   viewMR (one {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
-  ...                    | s'' , fr-l , fr-r = one {!!} {!fr-r!} {!!}
+  ...                    | s'' , fr-l , fr-r , eq = one {!!} {!fr-r!} {!!}
   viewMR (zero mr all) fr = {!!}
 
   Conformance : {tr : Trace} (mr : MultiRecovery tr)
@@ -613,6 +615,7 @@ module SnapshotConsistency
     let oe' = AR⇒ObsEquiv (rinv' , ar') in t' , frS'' • t''▸t' , ar ar' , oe' , conf'' , oe'
 
   BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
+     --→ {t : State} → Init t → Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
      → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
   BC (init all) (init init-rs) frP (init .frP) = {!!} , {!!} , {!!} , {!!} , {!!} , {!!} , {!!} , {!!} 
   BC (one mr x) init-s frP frPs = {!!}
