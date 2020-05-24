@@ -15,14 +15,23 @@ module theorem2
   (Data : Set) (defaultData : Data)
   where
 
-variable
-  addr : Addr
-  dat  : Data
-
 infixl 20 _•_
 infixl 20 _⊙_
 infixl 20 _++RTC_
 infixl 20 _<≐>_
+
+variable
+  addr : Addr
+  dat  : Data
+
+_≐_ : {A B : Set} → (A → B) → (A → B) → Set
+s ≐ t = ∀ a → s a ≡ t a
+
+sym-≐ : {A B : Set} {s t : A → B} → s ≐ t → t ≐ s
+sym-≐ eq = λ{x → sym (eq x)}
+
+_<≐>_ : {A B : Set} {s t u : A → B} → s ≐ t → t ≐ u → s ≐ u
+_<≐>_ {A} {B} {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
 
 data SnocList (A : Set) : Set where
   []  : SnocList A
@@ -90,93 +99,7 @@ data Regular×SnapshotCrash : Action → Set where
   cpᶜ : Regular×SnapshotCrash cpᶜ
   erᶜ : Regular×SnapshotCrash erᶜ
 
-record State : Set where
-  field
-    volatile : Addr → Data
-    stable   : Addr → Data
-    w-count  : ℕ
-
-Init : State → Set
-Init s = (addr : Addr) → (State.stable s addr ≡ defaultData)
-
-variable
-  t  : State
-  t' : State
-
-update : (Addr → Data) → Addr → Data → (Addr → Data)
-update s addr dat i with addr ≤?MAXWCNT
-update s addr dat i | false = s i
-update s addr dat i | true with addr ≟ i
-update s addr dat i | true | true  = dat
-update s addr dat i | true | false = s i
-
-_≐_ : (Addr → Data) → (Addr → Data) → Set
-s ≐ t = ∀ (addr : Addr) → s addr ≡ t addr
-
-sym-≐ : ∀ {s t : Addr → Data} → s ≐ t → t ≐ s
-sym-≐ eq = λ{x → sym (eq x)}
-
-_<≐>_ : ∀ {s t u : Addr → Data} → s ≐ t → t ≐ u → s ≐ u
-_<≐>_ {s} {t} {u} e q = λ{x → begin s x ≡⟨ e x ⟩ t x ≡⟨ q x ⟩ u x ∎}
-
-data Step (s s' : State) : Action → Set where
-  w   : update (State.volatile s) addr dat ≐ State.volatile s'
-      → State.stable s ≐ State.stable s'
-      → suc (State.w-count s) ≡ State.w-count s'
-      → Step s s' w[ addr ↦ dat ]
-  f   : State.volatile s ≐ State.volatile s'
-      → State.volatile s ≐ State.stable s'
-      → State.w-count s' ≡ zero
-      → Step s s' f
-  r   : State.stable s ≐ State.volatile s'
-      → State.stable s ≐ State.stable s'
-      → State.w-count s' ≡ zero
-      → Step s s' r
-  wᶜ  : State.stable s ≐ State.stable s'
-      → Step s s' (wᶜ[ addr ↦ dat ])
-  fᶜ  : State.volatile s ≐ State.stable s' ⊎ State.stable s ≐ State.stable s'
-      → Step s s' fᶜ
-  rᶜ  : State.stable s ≐ State.stable s'
-      → Step s s' rᶜ
-  cp  : State.volatile s ≐ State.volatile s'
-      → State.stable s ≐ State.stable s'
-      → State.w-count s ≡ State.w-count s'
-      → Step s s' cp
-  er  : State.volatile s ≐ State.volatile s'
-      → State.stable s ≐ State.stable s'
-      → State.w-count s ≡ State.w-count s'
-      → Step s s' er
-  cpᶜ : State.stable s ≐ State.stable s' → Step s s' cpᶜ
-  erᶜ : State.stable s ≐ State.stable s' → Step s s' erᶜ
-
-_⟦_⟧▸_ : State → Action → State → Set
-s ⟦ ac ⟧▸ s' = Step s s' ac
-
-record StbP (ac : Action) : Set where --Stable Reserving Actions
-  field
-    preserve : {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
-
-instance
-  stb-r   : StbP r
-  stb-r   = record { preserve = λ{(r _ ss _) → ss} }
-  stb-w   : StbP w[ addr ↦ dat ]
-  stb-w   = record { preserve = λ{(w _ ss _ ) → ss} }
-  stb-wᶜ  : StbP wᶜ[ addr ↦ dat ]
-  stb-wᶜ  = record { preserve = λ{(wᶜ ss) → ss} }
-  stb-rᶜ  : StbP rᶜ
-  stb-rᶜ  = record { preserve = λ{(rᶜ ss) → ss} }
-  stb-cp  : StbP cp
-  stb-cp  = record { preserve = λ{(cp _ ss _) → ss}}
-  stb-er  : StbP er
-  stb-er  = record { preserve = λ{(er _ ss _) → ss}}
-  stb-cpᶜ : StbP cpᶜ
-  stb-cpᶜ = record { preserve = λ{(cpᶜ ss) → ss}}
-  stb-erᶜ : StbP erᶜ
-  stb-erᶜ = record { preserve = λ{(erᶜ ss) → ss}}
-
 Trace = SnocList Action
-
-Traces = SnocList Trace
 
 variable
   ef  : Trace
@@ -196,9 +119,6 @@ data RTC {A S : Set} (R : S → A → S → Set) : S → SnocList A → S → Se
   _•_ : ∀ {s t u : S} {acs : SnocList A} {ac : A}
       → RTC R s acs t → R t ac u → RTC R s (acs • ac) u
 
-_⟦_⟧*▸_ = RTC  _⟦_⟧▸_
-_⦅_⦆*▸_ = RTC _⟦_⟧*▸_
-
 _++RTC_ : {A S : Set} {R : S → A → S → Set} {s t u : S} {ef₁ ef₂ : SnocList A}
         → RTC R s ef₁ t → RTC R t ef₂ u → RTC R s (ef₁ ⊙ ef₂) u
 tc-s-t ++RTC ∅             = tc-s-t
@@ -210,71 +130,228 @@ splitRTC ef₁ {rest = []}                t = (_ , t , ∅ , refl)
 splitRTC ef₁ {rest = (ef₂ • ac)} (t • rr) with splitRTC ef₁ t
 ...                                       | s'' , t₁ , t₂ , refl = s'' , t₁ , t₂ • rr , refl
 
-idemₛ : All StbP frag
-      → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
-      → State.stable s ≐ State.stable s'
-idemₛ [] ∅ = λ{_ → refl}
-idemₛ (all ∷ x) (s2s'' • s''2s') =
-  idemₛ all s2s'' <≐> StbP.preserve x s''2s'
+data OneRecovery : Trace → Set where
+  wᶜ     : {tr₁ tr₂ tr₃ : Trace} → All Regular×Snapshot tr₁ → All Regular tr₂ → All RecoveryCrash tr₃
+         → OneRecovery (tr₁ ⊙ ([] • f ⊙ tr₂) ⊙ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r))
+  fᶜ     : {tr₁ tr₂ tr₃ : Trace} → All Regular×Snapshot tr₁ → All Regular tr₂ → All RecoveryCrash tr₃
+         → OneRecovery (tr₁ ⊙ ([] • f ⊙ tr₂) ⊙ ([] • fᶜ ⊙ tr₃ • r))
+  wᶜ-nof : {tr₂ tr₃ : Trace} → All Regular tr₂ → All RecoveryCrash tr₃
+         → OneRecovery (tr₂ ⊙ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r))
+  fᶜ-nof : {tr₂ tr₃ : Trace} → All Regular tr₂ → All RecoveryCrash tr₃
+         → OneRecovery (tr₂ ⊙ ([] • fᶜ ⊙ tr₃ • r))
 
-r→rs : Regular ac → Regular×Snapshot ac
-r→rs w = w
-r→rs cp = cp
-r→rs er = er
+data MultiRecovery : Trace → Set where
+  init : {tr : Trace} → All RecoveryCrash tr → MultiRecovery (tr • r)
+  one  : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → OneRecovery tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
 
-n→sp : Regular ac → StbP ac
-n→sp w  = stb-w
-n→sp cp = stb-cp
-n→sp er = stb-er
+data 1RFrags {S : Set} {R : S → Action → S → Set} : {s s' : S} {tr : Trace} → OneRecovery tr → RTC R s tr s' → Set where
+  wᶜ     : {tr₁ tr₂ tr₃ : Trace} {all₁ : All Regular×Snapshot tr₁} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
+         → {s₁ s₂ s₃ s₄ : S} (fr₁ : RTC R s₁ tr₁ s₂) (fr₂ : RTC R s₂ ([] • f ⊙ tr₂) s₃) (fr₃ : RTC R s₃ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r) s₄)
+         → 1RFrags (wᶜ all₁ all₂ all₃) (fr₁ ++RTC fr₂ ++RTC fr₃)
+  fᶜ     : {tr₁ tr₂ tr₃ : Trace} {all₁ : All Regular×Snapshot tr₁} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
+         → {s₁ s₂ s₃ s₄ : S} (fr₁ : RTC R s₁ tr₁ s₂) (fr₂ : RTC R s₂ ([] • f ⊙ tr₂) s₃) (fr₃ : RTC R s₃ ([] • fᶜ ⊙ tr₃ • r) s₄)
+         → 1RFrags (fᶜ all₁ all₂ all₃) (fr₁ ++RTC fr₂ ++RTC fr₃)
+  wᶜ-nof : {tr₂ tr₃ : Trace} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
+         → {s₂ s₃ s₄ : S} (fr₂ : RTC R s₂ tr₂ s₃) (fr₃ : RTC R s₃ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r) s₄)
+         → 1RFrags (wᶜ-nof all₂ all₃) (fr₂ ++RTC fr₃)
+  fᶜ-nof : {tr₂ tr₃ : Trace} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
+         → {s₂ s₃ s₄ : S} (fr₂ : RTC R s₂ tr₂ s₃) (fr₃ : RTC R s₃ ([] • fᶜ ⊙ tr₃ • r) s₄)
+         → 1RFrags (fᶜ-nof all₂ all₃) (fr₂ ++RTC fr₃)
 
-rᶜ→sp : RecoveryCrash ac → StbP ac
-rᶜ→sp rᶜ = stb-rᶜ
+view1R : {tr : Trace} (1r : OneRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → 1RFrags 1r fr
+view1R (wᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr
+  with splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • wᶜ[ _ ↦ _ ] ⊙ tr₃ • r} fr
+...  | s₃ , fr-l , fr₃ , refl with splitRTC tr₁ {rest = [] • f ⊙ tr₂} fr-l
+...  | s₂ , fr₁  , fr₂ , refl = wᶜ fr₁ fr₂ fr₃
+view1R (fᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr
+  with splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • fᶜ ⊙ tr₃ • r} fr
+...  | s₃ , fr-l , fr₃ , refl with splitRTC tr₁ {rest = [] • f ⊙ tr₂} fr-l
+...  | s₂ , fr₁  , fr₂ , refl = fᶜ fr₁ fr₂ fr₃
+view1R (wᶜ-nof {tr₂ = tr₂} {tr₃ = tr₃} all₂ all₃) fr with splitRTC tr₂ fr
+...  | _ , fr₁ , fr₂ , refl = wᶜ-nof fr₁ fr₂
+view1R (fᶜ-nof {tr₂ = tr₂} {tr₃ = tr₃} all₂ all₃) fr with splitRTC tr₂ fr
+...  | _ , fr₁ , fr₂ , refl = fᶜ-nof fr₁ fr₂
 
-SpecSC-wᶜ : ∀ {s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
-           → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
-           → s₂ ⟦ [] • f ⊙ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • wᶜ[ addr ↦ dat ] ⊙ tr-rᶜ • r ⟧*▸ s₄
-           → State.volatile s₂ ≐ State.volatile s₄
-SpecSC-wᶜ {{ all₂ }} {{ all₃ }} s₂▸s₃ (s₃▹ • r sv _ _)
-      with splitRTC ([] • f) s₂▸s₃ | splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
-...      | s₂' , ∅ • (f vv vs _) , s₂'▸s₃ , _ | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
-             vs <≐> idemₛ (mapAll n→sp  all₂) s₂'▸s₃  <≐>
-             ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
+data MRFrags {S : Set} {R : S → Action → S → Set} : {s s' : S} {tr : Trace} → MultiRecovery tr → RTC R s tr s' → Set where
+  init : {tr : Trace} {all : All RecoveryCrash tr} {s s' : S} (fr : RTC R s (tr • r) s') → MRFrags (init all) fr
+  one  : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
+       → {tr₂ : Trace} {1r : OneRecovery   tr₂} {s₃    : S} (fr₂ : RTC R s₂ tr₂ s₃) → 1RFrags 1r fr₂ → MRFrags (one mr 1r) (fr₁ ++RTC fr₂)
 
-SpecSC-wᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
-              → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
-              → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • wᶜ[ addr ↦ dat ] ⊙ tr-rᶜ • r ⟧*▸ s₄
-              → State.volatile s₂ ≐ State.volatile s₄
-SpecSC-wᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
-         with splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
-...         | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
-                sym-≐ sv' <≐> ss' <≐> idemₛ (mapAll n→sp  all₂) s₂▸s₃  <≐>
-                ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
+viewMR : {tr : Trace} (mr : MultiRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → MRFrags mr fr
+viewMR (init all) fr = init fr
+viewMR (one  {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
+...  | _ , fr-l , fr-r , refl = one  (viewMR mr fr-l) fr-r (view1R all fr-r)
 
-SpecSC-fᶜ : ∀ {s₂ s₃ s : State} {tr-w tr-rᶜ}
-           → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
-           → s₂ ⟦ ([] • f) ⊙ tr-w ⟧*▸ s₃ → s₃ ⟦ ([] • fᶜ) ⊙ tr-rᶜ • r ⟧*▸ s
-           → State.volatile s₃ ≐ State.volatile s ⊎ State.volatile s₂ ≐ State.volatile s
-SpecSC-fᶜ {{all₁}} {{all₂}} s₂▸s₃ (s₃▸s • r sv ss _)
-      with splitRTC ([] • f) s₂▸s₃ | splitRTC ([] • fᶜ) s₃▸s
-...      | _ , ∅ • f vv vs _ , ▸s₃ , _ | s₃' , ∅ • fᶜ (inj₁ vsᶜ) , s₃'▸s , _ =
-             inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₂) s₃'▸s <≐> sv
-...      | _ , ∅ • f vv vs _ , ▸s₃ , _ | s₃' , ∅ • fᶜ (inj₂ ssᶜ) , s₃'▸s , _ =
-             inj₂ $ vs <≐>
-             idemₛ (mapAll n→sp all₁) ▸s₃ <≐> ssᶜ <≐>
-             idemₛ (mapAll rᶜ→sp all₂) s₃'▸s <≐> sv
+lastr : {S : Set} {s s' : S} {R : S → Action → S → Set} {tr : Trace} (mr : MultiRecovery tr)
+      → (fr : RTC R s tr s') → (frs : MRFrags mr fr) → Σ[ s'' ∈ S ] (R s'' r s')
+lastr .(init _) .fr (init fr) with fr
+... | _ • x =  _ , x
+lastr ._ ._ (one _ ._ (wᶜ _ _ (fr₃ • x))) = _ , x
+lastr ._ ._ (one _ ._ (fᶜ _ _ (fr₃ • x))) = _ , x
+lastr ._ ._ (one _ ._ (wᶜ-nof _ (fr₃ • x))) = _ , x
+lastr ._ ._ (one _ ._ (fᶜ-nof _ (fr₃ • x))) = _ , x
 
-SpecSC-fᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
-              → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
-              → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • fᶜ ⊙ tr-rᶜ • r ⟧*▸ s₄
-              → State.volatile s₃ ≐ State.volatile s₄ ⊎ State.volatile s₂ ≐ State.volatile s₄
-SpecSC-fᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
-         with splitRTC ([] • fᶜ) s₃▹
-...         | s₃' , ∅ • fᶜ (inj₁ vsᶜ) , s₃'▸s , _ = inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
-...         | s₃' , ∅ • fᶜ (inj₂ ssᶜ) , s₃'▸s , _ = inj₂ $ sym-≐ sv' <≐> ss' <≐>
-                                                           idemₛ (mapAll n→sp  all₂) s₂▸s₃ <≐> ssᶜ <≐>
-                                                           idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
+SnapshotConsistency : {S : Set} {s s' : S} {R : S → Action → S → Set} (ER : S → S → Set)
+                      {tr : Trace} → (1r : OneRecovery tr) → (fr : RTC R s tr s') → 1RFrags 1r fr → Set
+SnapshotConsistency ER ._ ._ (wᶜ     {s₂ = s₂} {s₄ = s₄} _ _ _) = ER s₂ s₄
+SnapshotConsistency ER ._ ._ (fᶜ     {s₂ = s₂} {s₃} {s₄} _ _ _) = ER s₃ s₄ ⊎ ER s₂ s₄
+SnapshotConsistency ER ._ ._ (wᶜ-nof {s₂ = s₂} {s₄ = s₄}   _ _) = ER s₂ s₄
+SnapshotConsistency ER ._ ._ (fᶜ-nof {s₂ = s₂} {s₃} {s₄}   _ _) = ER s₃ s₄ ⊎ ER s₂ s₄
 
-module BehavioralCorrectnessAndSnapshotConsistency
+module Spec where
+
+  record State : Set where
+    field
+      volatile : Addr → Data
+      stable   : Addr → Data
+      w-count  : ℕ
+
+  Init : State → Set
+  Init s = (addr : Addr) → (State.stable s addr ≡ defaultData)
+
+  variable
+    t  : State
+    t' : State
+
+  update : (Addr → Data) → Addr → Data → (Addr → Data)
+  update s addr dat i with addr ≤?MAXWCNT
+  update s addr dat i | false = s i
+  update s addr dat i | true with addr ≟ i
+  update s addr dat i | true | true  = dat
+  update s addr dat i | true | false = s i
+
+  data Step (s s' : State) : Action → Set where
+    w   : update (State.volatile s) addr dat ≐ State.volatile s'
+        → State.stable s ≐ State.stable s'
+        → suc (State.w-count s) ≡ State.w-count s'
+        → Step s s' w[ addr ↦ dat ]
+    f   : State.volatile s ≐ State.volatile s'
+        → State.volatile s ≐ State.stable s'
+        → State.w-count s' ≡ zero
+        → Step s s' f
+    r   : State.stable s ≐ State.volatile s'
+        → State.stable s ≐ State.stable s'
+        → State.w-count s' ≡ zero
+        → Step s s' r
+    wᶜ  : State.stable s ≐ State.stable s'
+        → Step s s' (wᶜ[ addr ↦ dat ])
+    fᶜ  : State.volatile s ≐ State.stable s' ⊎ State.stable s ≐ State.stable s'
+        → Step s s' fᶜ
+    rᶜ  : State.stable s ≐ State.stable s'
+        → Step s s' rᶜ
+    cp  : State.volatile s ≐ State.volatile s'
+        → State.stable s ≐ State.stable s'
+        → State.w-count s ≡ State.w-count s'
+        → Step s s' cp
+    er  : State.volatile s ≐ State.volatile s'
+        → State.stable s ≐ State.stable s'
+        → State.w-count s ≡ State.w-count s'
+        → Step s s' er
+    cpᶜ : State.stable s ≐ State.stable s' → Step s s' cpᶜ
+    erᶜ : State.stable s ≐ State.stable s' → Step s s' erᶜ
+
+  _⟦_⟧▸_ : State → Action → State → Set
+  s ⟦ ac ⟧▸ s' = Step s s' ac
+
+  _⟦_⟧*▸_ = RTC  _⟦_⟧▸_
+
+  record StbP (ac : Action) : Set where --Stability Reserving Actions
+    field
+      preserve : {s s' : State} → s ⟦ ac ⟧▸ s' → (State.stable s ≐ State.stable s')
+
+  instance
+    stb-r   : StbP r
+    stb-r   = record { preserve = λ{(r _ ss _) → ss} }
+    stb-w   : StbP w[ addr ↦ dat ]
+    stb-w   = record { preserve = λ{(w _ ss _ ) → ss} }
+    stb-wᶜ  : StbP wᶜ[ addr ↦ dat ]
+    stb-wᶜ  = record { preserve = λ{(wᶜ ss) → ss} }
+    stb-rᶜ  : StbP rᶜ
+    stb-rᶜ  = record { preserve = λ{(rᶜ ss) → ss} }
+    stb-cp  : StbP cp
+    stb-cp  = record { preserve = λ{(cp _ ss _) → ss}}
+    stb-er  : StbP er
+    stb-er  = record { preserve = λ{(er _ ss _) → ss}}
+    stb-cpᶜ : StbP cpᶜ
+    stb-cpᶜ = record { preserve = λ{(cpᶜ ss) → ss}}
+    stb-erᶜ : StbP erᶜ
+    stb-erᶜ = record { preserve = λ{(erᶜ ss) → ss}}
+
+  idemₛ : All StbP frag
+        → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
+        → State.stable s ≐ State.stable s'
+  idemₛ [] ∅ = λ{_ → refl}
+  idemₛ (all ∷ x) (s2s'' • s''2s') =
+    idemₛ all s2s'' <≐> StbP.preserve x s''2s'
+
+  r→rs : Regular ac → Regular×Snapshot ac
+  r→rs w = w
+  r→rs cp = cp
+  r→rs er = er
+
+  n→sp : Regular ac → StbP ac
+  n→sp w  = stb-w
+  n→sp cp = stb-cp
+  n→sp er = stb-er
+
+  rᶜ→sp : RecoveryCrash ac → StbP ac
+  rᶜ→sp rᶜ = stb-rᶜ
+
+  SpecSC-wᶜ : ∀ {s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
+             → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+             → s₂ ⟦ [] • f ⊙ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • wᶜ[ addr ↦ dat ] ⊙ tr-rᶜ • r ⟧*▸ s₄
+             → State.volatile s₂ ≐ State.volatile s₄
+  SpecSC-wᶜ {{ all₂ }} {{ all₃ }} s₂▸s₃ (s₃▹ • r sv _ _)
+        with splitRTC ([] • f) s₂▸s₃ | splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
+  ...      | s₂' , ∅ • (f vv vs _) , s₂'▸s₃ , _ | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
+               vs <≐> idemₛ (mapAll n→sp  all₂) s₂'▸s₃  <≐>
+               ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
+
+  SpecSC-wᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
+                → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+                → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • wᶜ[ addr ↦ dat ] ⊙ tr-rᶜ • r ⟧*▸ s₄
+                → State.volatile s₂ ≐ State.volatile s₄
+  SpecSC-wᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
+           with splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
+  ...         | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
+                  sym-≐ sv' <≐> ss' <≐> idemₛ (mapAll n→sp  all₂) s₂▸s₃  <≐>
+                  ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
+
+  SpecSC-fᶜ : ∀ {s₂ s₃ s : State} {tr-w tr-rᶜ}
+             → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+             → s₂ ⟦ ([] • f) ⊙ tr-w ⟧*▸ s₃ → s₃ ⟦ ([] • fᶜ) ⊙ tr-rᶜ • r ⟧*▸ s
+             → State.volatile s₃ ≐ State.volatile s ⊎ State.volatile s₂ ≐ State.volatile s
+  SpecSC-fᶜ {{all₁}} {{all₂}} s₂▸s₃ (s₃▸s • r sv ss _)
+        with splitRTC ([] • f) s₂▸s₃ | splitRTC ([] • fᶜ) s₃▸s
+  ...      | _ , ∅ • f vv vs _ , ▸s₃ , _ | s₃' , ∅ • fᶜ (inj₁ vsᶜ) , s₃'▸s , _ =
+               inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₂) s₃'▸s <≐> sv
+  ...      | _ , ∅ • f vv vs _ , ▸s₃ , _ | s₃' , ∅ • fᶜ (inj₂ ssᶜ) , s₃'▸s , _ =
+               inj₂ $ vs <≐>
+               idemₛ (mapAll n→sp all₁) ▸s₃ <≐> ssᶜ <≐>
+               idemₛ (mapAll rᶜ→sp all₂) s₃'▸s <≐> sv
+
+  SpecSC-fᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
+                → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+                → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • fᶜ ⊙ tr-rᶜ • r ⟧*▸ s₄
+                → State.volatile s₃ ≐ State.volatile s₄ ⊎ State.volatile s₂ ≐ State.volatile s₄
+  SpecSC-fᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
+           with splitRTC ([] • fᶜ) s₃▹
+  ...         | s₃' , ∅ • fᶜ (inj₁ vsᶜ) , s₃'▸s , _ = inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
+  ...         | s₃' , ∅ • fᶜ (inj₂ ssᶜ) , s₃'▸s , _ = inj₂ $ sym-≐ sv' <≐> ss' <≐>
+                                                             idemₛ (mapAll n→sp  all₂) s₂▸s₃ <≐> ssᶜ <≐>
+                                                             idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
+
+  SC : {t₀ t t' : State} {tr₀ tr : Trace} → (mr : MultiRecovery tr₀) → (1r : OneRecovery tr)
+     → Init t₀ → (fr₀ : t₀ ⟦ tr₀ ⟧*▸ t) → MRFrags mr fr₀ → (fr : t ⟦ tr ⟧*▸ t') → (frs : 1RFrags 1r fr)
+     → SnapshotConsistency (λ t t' → State.volatile t ≐ State.volatile t') 1r fr frs
+  SC mr _ init-t₀ fr₀ frs₀ ._ (wᶜ {all₂ = all₂} {all₃} fr₁ fr₂ fr₃) = SpecSC-wᶜ {{all₂}} {{all₃}} fr₂ fr₃
+  SC mr _ init-t₀ fr₀ frs₀ ._ (fᶜ {all₂ = all₂} {all₃} fr₁ fr₂ fr₃) = SpecSC-fᶜ {{all₂}} {{all₃}} fr₂ fr₃
+  SC mr _ init-t₀ fr₀ frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃) = SpecSC-wᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr fr₀ frs₀)) fr₂ fr₃
+  SC mr _ init-t₀ fr₀ frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃) = SpecSC-fᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr fr₀ frs₀)) fr₂ fr₃
+
+open Spec hiding (SC)
+
+module Prog
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
   (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
   (RI CI : RawStateᴾ → Set)
@@ -293,7 +370,8 @@ module BehavioralCorrectnessAndSnapshotConsistency
   (read : RawStateᴾ → Addr → Data)
   (AR⇒ObsEquiv : {s : RawStateᴾ} {t : State} → RI s × AR s t → read s ≐ State.volatile t)
   (Initᴿ : RawStateᴾ → Set)
-  (initᴿ : (s : RawStateᴾ) → Initᴿ s → (t : State) → Init t → (CI s × CR s t))
+  (initᴿ-CI : (s : RawStateᴾ) → Initᴿ s → CI s)
+  (initᴿ-CR : (s : RawStateᴾ) → Initᴿ s → (t : State) → Init t → CR s t)
   (t-init : Σ[ t ∈ State ] Init t)
   where
 
@@ -309,7 +387,6 @@ module BehavioralCorrectnessAndSnapshotConsistency
     cinv' : CI rs'
 
   _⟦_⟧ᴿ*▸_ = RTC _⟦_⟧ᴿ▸_
-  _⦅_⦆ᴿ*▸_ = RTC _⟦_⟧ᴿ*▸_
 
   data Inv (rs : RawStateᴾ) : Set where
     normal : RI rs → Inv rs
@@ -317,6 +394,7 @@ module BehavioralCorrectnessAndSnapshotConsistency
 
   Stateᴾ : Set
   Stateᴾ = Σ[ rs ∈ RawStateᴾ ] Inv rs
+
   unpack : Stateᴾ → RawStateᴾ
   unpack = proj₁
 
@@ -341,22 +419,10 @@ module BehavioralCorrectnessAndSnapshotConsistency
     cpᶜ : rs ⟦ cpᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ cpᶜ ⟧ᴾ▸ (rs' , crash cinv')
     erᶜ : rs ⟦ erᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ erᶜ ⟧ᴾ▸ (rs' , crash cinv')
 
-  State² = Stateᴾ × State
-
-  Init² : State² → Set
-  Init² (s , t) = Initᴾ s × Init t
-
-  _⟦_⟧²▸_ : State² → Action → State² → Set
-  (s , t) ⟦ ac ⟧²▸ (s' , t') = s ⟦ ac ⟧ᴾ▸ s' × t ⟦ ac ⟧▸ t'
+  _⟦_⟧ᴾ*▸_ = RTC  _⟦_⟧ᴾ▸_
 
   ObsEquiv : Stateᴾ → State → Set
   ObsEquiv (rs , _) t = read rs ≐ State.volatile t
-
-  _⟦_⟧ᴾ*▸_ = RTC  _⟦_⟧ᴾ▸_
-  _⦅_⦆ᴾ*▸_ = RTC _⟦_⟧ᴾ*▸_
-
-  _⟦_⟧²*▸_ = RTC _⟦_⟧²▸_
-
 
   data SR : Stateᴾ → State → Set where
     ar : AR rs t → SR (rs , normal rinv) t
@@ -401,52 +467,17 @@ module BehavioralCorrectnessAndSnapshotConsistency
         (t'  , t''▸t' , SR-s'-t'  ) = simSR SR-s''-t'' s''▸s'
     in  _ , (t*▸t'' • t''▸t') , SR-s'-t'
 
-  lift-n×s : ∀ {ef : Trace} {{_ : All Regular×Snapshot ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
-             ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-n×s ∅ = _ , ∅
-  lift-n×s {{all ∷ w}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI w rs''▸rs' rinv'' , s*▸s'' • w rs''▸rs'
-  lift-n×s {{all ∷ f}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI f rs''▸rs' rinv'' , s*▸s'' • f rs''▸rs'
-  lift-n×s {{all ∷ cp}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI cp rs''▸rs' rinv'' , s*▸s'' • cp rs''▸rs'
-  lift-n×s {{all ∷ er}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
-
-  lift-n : ∀ {ef : Trace} {{_ : All Regular ef}} → rs ⟦ ef ⟧ᴿ*▸ rs'
-         → ∃[ rinv' ] ((rs , normal rinv) ⟦ ef ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-n {{all}} rs*▸rs' =
-    lift-n×s {{(mapAll (λ{w → w; cp → cp; er → er}) all)}} rs*▸rs'
-
-  lift-rᶜ : ∀ {ef : Trace} {{_ : All RecoveryCrash ef}} → rs ⟦ ef ⟧ᴿ*▸ rs' →
-            ∃[ cinv' ] ((rs , crash cinv) ⟦ ef ⟧ᴾ*▸ (rs' , crash cinv'))
-  lift-rᶜ ∅ = _ , ∅
-  lift-rᶜ {{all ∷ rᶜ}} (rs*▸rs'' • rs''▸rs') =
-    let (cinv'' , s*▸s'') = lift-rᶜ {{all}} rs*▸rs''
-    in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
-
-  data OneRecovery : Trace → Set where
-    wᶜ     : {tr₁ tr₂ tr₃ : Trace} → All Regular×Snapshot tr₁ → All Regular tr₂ → All RecoveryCrash tr₃
-           → OneRecovery (tr₁ ⊙ ([] • f ⊙ tr₂) ⊙ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r))
-    fᶜ     : {tr₁ tr₂ tr₃ : Trace} → All Regular×Snapshot tr₁ → All Regular tr₂ → All RecoveryCrash tr₃
-           → OneRecovery (tr₁ ⊙ ([] • f ⊙ tr₂) ⊙ ([] • fᶜ ⊙ tr₃ • r))
-    wᶜ-nof : {tr₂ tr₃ : Trace} → All Regular tr₂ → All RecoveryCrash tr₃
-           → OneRecovery (tr₂ ⊙ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r))
-    fᶜ-nof : {tr₂ tr₃ : Trace} → All Regular tr₂ → All RecoveryCrash tr₃
-           → OneRecovery (tr₂ ⊙ ([] • fᶜ ⊙ tr₃ • r))
-
-  data MultiRecovery : Trace → Set where
-    init : {tr : Trace} → All RecoveryCrash tr → MultiRecovery (tr • r)
-    one  : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → OneRecovery tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
---    zero : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → All Regular×Snapshot tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
-
   Conformance-all : {tr : Trace} {s s' : Stateᴾ} → s ⟦ tr ⟧ᴾ*▸ s' → {t t' : State} → t ⟦ tr ⟧*▸ t' → Set
   Conformance-all {s' = s'} ∅         {t' = t'} ∅         = ⊤
   Conformance-all {s' = s'} (frP • _) {t' = t'} (frS • _) = Conformance-all frP frS × ObsEquiv s' t'
+
+  Conformance-1R : {tr : Trace} (1r : OneRecovery tr)
+                 → {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r frP
+                 → {t t' : State } (frS : t ⟦ tr ⟧*▸  t') → 1RFrags 1r frS → Set
+  Conformance-1R ._ {s' = s'} ._ (wᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (wᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
+  Conformance-1R ._ {s' = s'} ._ (fᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (fᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
+  Conformance-1R ._ {s' = s'} ._ (wᶜ-nof  frP₂ frP₃) {t' = t'} ._ (wᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
+  Conformance-1R ._ {s' = s'} ._ (fᶜ-nof  frP₂ frP₃) {t' = t'} ._ (fᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
 
   Conformance-all-intermediate : {s₁ s₂ s₃ : Stateᴾ} {t₁ t₂ t₃ : State} {tr tr' : Trace}
                                  (frP : s₁ ⟦ tr ⟧ᴾ*▸ s₂) (frS : t₁ ⟦ tr ⟧*▸ t₂) (frP' : s₂ ⟦ tr' ⟧ᴾ*▸ s₃) (frS' : t₂ ⟦ tr' ⟧*▸ t₃)
@@ -462,64 +493,12 @@ module BehavioralCorrectnessAndSnapshotConsistency
   conf-all++ frP frS ∅ ∅ conf conf' = conf
   conf-all++ frP frS (frP' • p) (frS' • s) conf (conf' , oe) = conf-all++ frP frS frP' frS' conf conf' , oe
 
-  data 1RFrags {S : Set} {R : S → Action → S → Set} : {s s' : S} {tr : Trace} → OneRecovery tr → RTC R s tr s' → Set where
-    wᶜ     : {tr₁ tr₂ tr₃ : Trace} {all₁ : All Regular×Snapshot tr₁} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
-           → {s₁ s₂ s₃ s₄ : S} (fr₁ : RTC R s₁ tr₁ s₂) (fr₂ : RTC R s₂ ([] • f ⊙ tr₂) s₃) (fr₃ : RTC R s₃ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r) s₄)
-           → 1RFrags (wᶜ all₁ all₂ all₃) (fr₁ ++RTC fr₂ ++RTC fr₃)
-    fᶜ     : {tr₁ tr₂ tr₃ : Trace} {all₁ : All Regular×Snapshot tr₁} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
-           → {s₁ s₂ s₃ s₄ : S} (fr₁ : RTC R s₁ tr₁ s₂) (fr₂ : RTC R s₂ ([] • f ⊙ tr₂) s₃) (fr₃ : RTC R s₃ ([] • fᶜ ⊙ tr₃ • r) s₄)
-           → 1RFrags (fᶜ all₁ all₂ all₃) (fr₁ ++RTC fr₂ ++RTC fr₃)
-    wᶜ-nof : {tr₂ tr₃ : Trace} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
-           → {s₂ s₃ s₄ : S} (fr₂ : RTC R s₂ tr₂ s₃) (fr₃ : RTC R s₃ ([] • wᶜ[ addr ↦ dat ] ⊙ tr₃ • r) s₄)
-           → 1RFrags (wᶜ-nof all₂ all₃) (fr₂ ++RTC fr₃)
-    fᶜ-nof : {tr₂ tr₃ : Trace} {all₂ : All Regular tr₂} {all₃ : All RecoveryCrash tr₃}
-           → {s₂ s₃ s₄ : S} (fr₂ : RTC R s₂ tr₂ s₃) (fr₃ : RTC R s₃ ([] • fᶜ ⊙ tr₃ • r) s₄)
-           → 1RFrags (fᶜ-nof all₂ all₃) (fr₂ ++RTC fr₃)
-
-  view1R : {tr : Trace} (1r : OneRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → 1RFrags 1r fr
-  view1R (wᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr
-    with splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • wᶜ[ _ ↦ _ ] ⊙ tr₃ • r} fr
-  ...  | s₃ , fr-l , fr₃ , refl with splitRTC tr₁ {rest = [] • f ⊙ tr₂} fr-l
-  ...  | s₂ , fr₁  , fr₂ , refl = wᶜ fr₁ fr₂ fr₃
-  view1R (fᶜ {tr₁ = tr₁} {tr₂ = tr₂} {tr₃ = tr₃} all₁ all₂ all₃) {s = s₁} {s' = s₄} fr
-    with splitRTC (tr₁ ⊙ ([] • f ⊙ tr₂)) {rest = [] • fᶜ ⊙ tr₃ • r} fr
-  ...  | s₃ , fr-l , fr₃ , refl with splitRTC tr₁ {rest = [] • f ⊙ tr₂} fr-l
-  ...  | s₂ , fr₁  , fr₂ , refl = fᶜ fr₁ fr₂ fr₃
-  view1R (wᶜ-nof {tr₂ = tr₂} {tr₃ = tr₃} all₂ all₃) fr with splitRTC tr₂ fr
-  ...  | _ , fr₁ , fr₂ , refl = wᶜ-nof fr₁ fr₂
-  view1R (fᶜ-nof {tr₂ = tr₂} {tr₃ = tr₃} all₂ all₃) fr with splitRTC tr₂ fr
-  ...  | _ , fr₁ , fr₂ , refl = fᶜ-nof fr₁ fr₂
-
-  Conformance-1R : {tr : Trace} (1r : OneRecovery tr)
-                 → {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r frP
-                 → {t t' : State } (frS : t ⟦ tr ⟧*▸  t') → 1RFrags 1r frS → Set
-  Conformance-1R ._ {s' = s'} ._ (wᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (wᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (fᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (fᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (wᶜ-nof  frP₂ frP₃) {t' = t'} ._ (wᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (fᶜ-nof  frP₂ frP₃) {t' = t'} ._ (fᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
-
-  data MRFrags {S : Set} {R : S → Action → S → Set} : {s s' : S} {tr : Trace} → MultiRecovery tr → RTC R s tr s' → Set where
-    init : {tr : Trace} {all : All RecoveryCrash tr} {s s' : S} (fr : RTC R s (tr • r) s') → MRFrags (init all) fr
-    one  : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
-         → {tr₂ : Trace} {1r : OneRecovery   tr₂} {s₃    : S} (fr₂ : RTC R s₂ tr₂ s₃) → 1RFrags 1r fr₂ → MRFrags (one mr 1r) (fr₁ ++RTC fr₂)
---    zero : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
---         → {tr₂ : Trace} {all : All Regular×Snapshot tr₂} {s₃ : S} (fr₂ : RTC R s₂ tr₂ s₃) → MRFrags (zero mr all) (fr₁ ++RTC fr₂)
-
-  viewMR : {tr : Trace} (mr : MultiRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → MRFrags mr fr
-  viewMR (init all) fr = init fr
-  viewMR (one  {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
-  ...  | _ , fr-l , fr-r , refl = one  (viewMR mr fr-l) fr-r (view1R all fr-r)
---  viewMR (zero {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
---  ...  | _ , fr-l , fr-r , refl = zero (viewMR mr fr-l) fr-r
-
   Conformance : {tr : Trace} (mr : MultiRecovery tr)
                 {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → MRFrags mr frP
               → {t t' : State } (frS : t ⟦ tr ⟧*▸  t') → MRFrags mr frS → Set
   Conformance (init _) {s' = s'} _ _ {t' = t'} _ _ = ObsEquiv s' t'
   Conformance (one mr 1r) .(_ ++RTC frP₂) (one {s₂ = s''} frPs frP₂ frPs₂) .(_ ++RTC frS₂) (one {s₂ = t''} frSs frS₂ frSs₂) =
     Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-1R 1r frP₂ frPs₂ frS₂ frSs₂
---  Conformance (zero mr _) .(_ ++RTC frP₂) (zero {s₂ = s''} frPs frP₂) .(_ ++RTC frS₂) (zero {s₂ = t''} frSs frS₂) =
---    Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-all frP₂ frS₂
 
   BC-all : {tr : Trace} → All Regular×Snapshot tr → {s s' : Stateᴾ} {t : State} →
            SR s t → ObsEquiv s t → (frP : s ⟦ tr ⟧ᴾ*▸ s') →
@@ -568,50 +547,27 @@ module BehavioralCorrectnessAndSnapshotConsistency
           let oe' = AR⇒ObsEquiv (rinv' , ar-s'-t')
           in  t' , frS₂ ++RTC frS' , fᶜ-nof frS₂ frS' , ar ar-s'-t' , oe' , conf₂ , oe'
 
-  BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
-     → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
-  BC (init all) {s = s₀} (init rs₀) (frP • rP@(r {rinv' = rinv'} rs)) frPs with initᴿ (proj₁ s₀) rs₀ (proj₁ t-init) (proj₂ t-init)
-  ... | CI , CR with runSimSR (cr CR) frP
+  BC-ind : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
+         → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
+  BC-ind (init all) {s = s₀} (init rs₀) (frP • rP@(r {rinv' = rinv'} rs)) frPs with runSimSR (cr (initᴿ-CR (proj₁ s₀) rs₀ (proj₁ t-init) (proj₂ t-init))) frP
   ... | t'' , frS , sr' with simSR sr' rP
   ... | t' , rS , (ar ar-rs'-t') =
           let eq = AR⇒ObsEquiv (rinv' , ar-rs'-t')
           in  proj₁ t-init , proj₂ t-init , t' , ar ar-rs'-t' , eq , frS • rS , init (frS • rS) , eq
-  BC (one mr x) init-s _ (one {mr = mr₁} {fr₁ = frP₁} frPs₁ {1r = 1r} frP₂ frPs₂) with BC mr init-s _ frPs₁
+  BC-ind (one mr x) init-s _ (one {mr = mr₁} {fr₁ = frP₁} frPs₁ {1r = 1r} frP₂ frPs₂) with BC-ind mr init-s _ frPs₁
   ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-1R 1r sr'' oe'' frP₂ frPs₂
   ... | t' , frS₂ , frSs₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , one frSs₁ frS₂ frSs₂ , conf₁ , oe'' , conf₂
---  BC (zero {tr₁ = tr₁} mr all) init-s .(_ ++RTC frP₂) (zero frPs frP₂) with BC mr init-s _ frPs
---  ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-all all sr'' oe'' frP₂
---  ... | t' , frS₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , zero frSs₁ frS₂ , conf₁ , oe'' , conf₂
 
-  BehavioralCorrectness :
-    {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → ( frPs : MRFrags mr frP ) →
-    Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
-  BehavioralCorrectness mr init-s frP frPs =
-    let (t , init-t , t' , _ , _ , frS , frSs , conf) = BC mr init-s frP frPs
+  BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → ( frPs : MRFrags mr frP )
+     → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
+  BC mr init-s frP frPs =
+    let (t , init-t , t' , _ , _ , frS , frSs , conf) = BC-ind mr init-s frP frPs
     in  t , init-t , t' , frS ,  frSs , conf
 
-  SnapshotConsistency : {S : Set} {s s' : S} {R : S → Action → S → Set} (ER : S → S → Set)
-                        {tr : Trace} → (1r : OneRecovery tr) → (fr : RTC R s tr s') → 1RFrags 1r fr → Set
-  SnapshotConsistency ER ._ ._ (wᶜ     {s₂ = s₂} {s₄ = s₄} _ _ _) = ER s₂ s₄
-  SnapshotConsistency ER ._ ._ (fᶜ     {s₂ = s₂} {s₃} {s₄} _ _ _) = ER s₃ s₄ ⊎ ER s₂ s₄
-  SnapshotConsistency ER ._ ._ (wᶜ-nof {s₂ = s₂} {s₄ = s₄}   _ _) = ER s₂ s₄
-  SnapshotConsistency ER ._ ._ (fᶜ-nof {s₂ = s₂} {s₃} {s₄}   _ _) = ER s₃ s₄ ⊎ ER s₂ s₄
-
-  SnapshotConsistencyᴾ : {s s' : Stateᴾ} {tr : Trace} → (1r : OneRecovery tr) → (fr : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r fr → Set
-  SnapshotConsistencyᴾ = SnapshotConsistency λ{(rs , _) (rs' , _) → read rs ≐ read rs'}
-
-  lastr : {S : Set} {s s' : S} {R : S → Action → S → Set} {tr : Trace} (mr : MultiRecovery tr)
-        → (fr : RTC R s tr s') → (frs : MRFrags mr fr) → Σ[ s'' ∈ S ] (R s'' r s')
-  lastr .(init _) .fr (init fr) with fr
-  ... | _ • x =  _ , x
-  lastr ._ ._ (one _ ._ (wᶜ _ _ (fr₃ • x))) = _ , x
-  lastr ._ ._ (one _ ._ (fᶜ _ _ (fr₃ • x))) = _ , x
-  lastr ._ ._ (one _ ._ (wᶜ-nof _ (fr₃ • x))) = _ , x
-  lastr ._ ._ (one _ ._ (fᶜ-nof _ (fr₃ • x))) = _ , x
-
   SC : {s₀ s s' : Stateᴾ} {tr₀ tr : Trace} → (mr : MultiRecovery tr₀) → (1r : OneRecovery tr)
-     → Initᴾ s₀ → (fr₀ : s₀ ⟦ tr₀ ⟧ᴾ*▸ s) → MRFrags mr fr₀ → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : 1RFrags 1r frP) → SnapshotConsistencyᴾ 1r frP frPs
-  SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BehavioralCorrectness (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
+     → Initᴾ s₀ → (fr₀ : s₀ ⟦ tr₀ ⟧ᴾ*▸ s) → MRFrags mr fr₀ → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : 1RFrags 1r frP)
+     → SnapshotConsistency (λ{(rs , _) (rs' , _) → read rs ≐ read rs'}) 1r frP frPs
+  SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BC (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (wᶜ frP₁ frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (wᶜ {all₁ = all₁} {all₂ = all₂} {all₃ = all₃} frS₁ frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
        = Conformance-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> SpecSC-wᶜ ⦃ all₂ ⦄ ⦃ all₃ ⦄ frS₂ frS₃ <≐> sym-≐ oe-s'-t'
@@ -628,3 +584,44 @@ module BehavioralCorrectnessAndSnapshotConsistency
        with SpecSC-fᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr _ frSs)) frS₂ frS₃
   ...  | inj₁ req = inj₁ $ Conformance-all-intermediate frP₂ frS₂ ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   ...  | inj₂ req = inj₂ $ oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
+
+  lift-n×s : {tr : Trace} {{_ : All Regular×Snapshot tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
+             ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-n×s ∅ = _ , ∅
+  lift-n×s {{all ∷ w}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI w rs''▸rs' rinv'' , s*▸s'' • w rs''▸rs'
+  lift-n×s {{all ∷ f}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI f rs''▸rs' rinv'' , s*▸s'' • f rs''▸rs'
+  lift-n×s {{all ∷ cp}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI cp rs''▸rs' rinv'' , s*▸s'' • cp rs''▸rs'
+  lift-n×s {{all ∷ er}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
+
+  lift-n : {tr : Trace} {{_ : All Regular tr}} → rs ⟦ tr ⟧ᴿ*▸ rs'
+         → ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-n {{all}} rs*▸rs' =
+    lift-n×s {{(mapAll (λ{w → w; cp → cp; er → er}) all)}} rs*▸rs'
+
+  lift-rᶜ : {tr : Trace} {{_ : All RecoveryCrash tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
+            ∃[ cinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , crash cinv'))
+  lift-rᶜ ∅ = _ , ∅
+  lift-rᶜ {{all ∷ rᶜ}} (rs*▸rs'' • rs''▸rs') =
+    let (cinv'' , s*▸s'') = lift-rᶜ {{all}} rs*▸rs''
+    in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
+
+  lift-mr : {tr : Trace} (mr : MultiRecovery tr) (fr : rs ⟦ tr ⟧ᴿ*▸ rs') → MRFrags mr fr → Initᴿ rs
+          → ∃[ cinv ] ∃[ rinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-mr ._ ._ (init {all = all} fr) init-rs with fr
+  ... | fr₀ • rr with lift-rᶜ {cinv = initᴿ-CI _ init-rs} {{all}} fr₀
+  ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr
+  lift-mr ._ ._ (one frs₀ fr frs) init-rs with lift-mr _ _ frs₀ init-rs
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ =
+    let (rinv₁ , fr₁ᴾ) = lift-n×s {rinv = rinv₀} {{all₁}} fr₁
+    in  {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
