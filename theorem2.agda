@@ -558,16 +558,25 @@ module Prog
   ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-1R 1r sr'' oe'' frP₂ frPs₂
   ... | t' , frS₂ , frSs₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , one frSs₁ frS₂ frSs₂ , conf₁ , oe'' , conf₂
 
-  BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → ( frPs : MRFrags mr frP )
-     → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
-  BC mr init-s frP frPs =
+  BC-mr : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : MRFrags mr frP)
+        → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
+  BC-mr mr init-s frP frPs =
     let (t , init-t , t' , _ , _ , frS , frSs , conf) = BC-ind mr init-s frP frPs
-    in  t , init-t , t' , frS ,  frSs , conf
+    in  (t , init-t , t' , frS ,  frSs , conf)
+
+  BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
+     → {tr' : Trace} {s'' : Stateᴾ} → All Regular×Snapshot tr' → (frP' : s' ⟦ tr' ⟧ᴾ*▸ s'')
+     → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Σ[ t'' ∈ State ] Σ[ frS' ∈ t' ⟦ tr' ⟧*▸ t'' ]
+       Conformance mr frP frPs frS frSs × Conformance-all frP' frS'
+  BC mr init-s frP frPs all frP' =
+    let (t , init-t , t' , sr' , oe' , frS , frSs , conf) = BC-ind mr init-s frP frPs
+        (t'' , frS' , _ , _ , conf') = BC-all all sr' oe' frP'
+    in  (t , init-t , t' , frS , frSs , t'' , frS' , conf , conf')
 
   SC : {s₀ s s' : Stateᴾ} {tr₀ tr : Trace} → (mr : MultiRecovery tr₀) → (1r : OneRecovery tr)
      → Initᴾ s₀ → (fr₀ : s₀ ⟦ tr₀ ⟧ᴾ*▸ s) → MRFrags mr fr₀ → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : 1RFrags 1r frP)
      → SnapshotConsistency (λ{(rs , _) (rs' , _) → read rs ≐ read rs'}) 1r frP frPs
-  SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BC (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
+  SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BC-mr (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (wᶜ frP₁ frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (wᶜ {all₁ = all₁} {all₂ = all₂} {all₃ = all₃} frS₁ frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
        = Conformance-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> SpecSC-wᶜ ⦃ all₂ ⦄ ⦃ all₃ ⦄ frS₂ frS₃ <≐> sym-≐ oe-s'-t'
