@@ -48,6 +48,7 @@
 %Everything before begin document is called the pre-amble and sets out how the document will look
 %It is recommended you don't touch the pre-amble until you are familiar with LateX
 
+\newcommand{\AgdaId}[1]{\ensuremath{\langle #1 \rangle_\mathtt{Agda}}}
 \newcommand{\defeq}{{}\triangleq{}}
 \newcommand{\conj}{\mathrel\land}
 \newcommand{\disj}{\mathrel\lor}
@@ -55,10 +56,14 @@
 \newcommand{\awa}[2]{\hphantom{#1}\mathclap{#2}\hphantom{#1}} % as wide as
 
 \renewcommand{\i}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\id}[1]{\ensuremath{\mathit{#1}}}
 
 \newcommand{\Spec}{\ensuremath{\mathbb S}}
 \newcommand{\Prog}{\ensuremath{\mathbb P}}
+\newcommand{\ProgState}{\ensuremath{\id{RawState}^{\mathbb P}}}
 \newcommand{\ProgInv}{\ensuremath{\mathbb P^\dagger}}
+\newcommand{\NewSpec}{\mathcal{N}_{\kern1.45pt\Spec}}
+\newcommand{\NewProg}{\mathcal{N}_{\kern1.375pt\Prog}}
 
 \newcommand{\actw}{\mathsf w}
 \newcommand{\actwc}{\mathsf w^\mathsf{c}}
@@ -66,6 +71,11 @@
 \newcommand{\actr}{\mathsf r}
 \newcommand{\actfc}{\mathsf{f^c}}
 \newcommand{\actrc}{\mathsf{r^c}}
+\newcommand{\actcp}{\mathsf{cp}}
+\newcommand{\actes}{\mathsf{es}}
+\newcommand{\actcpc}{\mathsf{cp^c}}
+\newcommand{\actesc}{\mathsf{es^c}}
+
 \newcommand{\hmid}{\hphantom{\mid{}}}
 
 \newcommand{\ttIn}[2]{\xrightarrow{#1}_{#2}}
@@ -82,13 +92,13 @@
 
 \begin{document}
 
-\title{Crash-Determinacy in Agda}
-\author{Lin Tzu Chi}
+\title{Behavioral Correctness and Snapshot Consistency in Agda}
+\author{Lin Tzu Chi \and Hsiang-Shang Ko}
 %\date{}
 \maketitle
 
 \begin{abstract}
-We have proved crash-determininacy in Agda, assuming that some essential properties have been verified by an SMT solver.
+We have proved the behavioral correctness and snapshot consistency of SCFTL in Agda, assuming that some essential properties have been verified by an SMT solver.
 \end{abstract}
 
 \input{sec1}
