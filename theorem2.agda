@@ -23,7 +23,6 @@ infixl 20 _•_
 infixl 20 _⊙_
 infixl 20 _++RTC_
 infixl 20 _<≐>_
-infixr 100 _[_↦_]
 
 data SnocList (A : Set) : Set where
   []  : SnocList A
@@ -241,6 +240,16 @@ SpecSC-wᶜ {{ all₂ }} {{ all₃ }} s₂▸s₃ (s₃▹ • r sv _ _)
              vs <≐> idemₛ (mapAll n→sp  all₂) s₂'▸s₃  <≐>
              ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
 
+SpecSC-wᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
+              → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+              → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • wᶜ[ addr ↦ dat ] ⊙ tr-rᶜ • r ⟧*▸ s₄
+              → State.volatile s₂ ≐ State.volatile s₄
+SpecSC-wᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
+         with splitRTC ([] • wᶜ[ _ ↦ _ ]) s₃▹
+...         | s₃' , ∅ • (wᶜ ss) , s₃'▸s₄▹ , _ =
+                sym-≐ sv' <≐> ss' <≐> idemₛ (mapAll n→sp  all₂) s₂▸s₃  <≐>
+                ss <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s₄▹ <≐> sv
+
 SpecSC-fᶜ : ∀ {s₂ s₃ s : State} {tr-w tr-rᶜ}
            → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
            → s₂ ⟦ ([] • f) ⊙ tr-w ⟧*▸ s₃ → s₃ ⟦ ([] • fᶜ) ⊙ tr-rᶜ • r ⟧*▸ s
@@ -253,6 +262,17 @@ SpecSC-fᶜ {{all₁}} {{all₂}} s₂▸s₃ (s₃▸s • r sv ss _)
              inj₂ $ vs <≐>
              idemₛ (mapAll n→sp all₁) ▸s₃ <≐> ssᶜ <≐>
              idemₛ (mapAll rᶜ→sp all₂) s₃'▸s <≐> sv
+
+SpecSC-fᶜ-nof : ∀ {s₁ s₂ s₃ s₄ : State} {tr-w tr-rᶜ}
+              → {{_ : All Regular tr-w}} {{_ : All RecoveryCrash tr-rᶜ}}
+              → s₁ ⟦ r ⟧▸ s₂ → s₂ ⟦ tr-w ⟧*▸ s₃ → s₃ ⟦ [] • fᶜ ⊙ tr-rᶜ • r ⟧*▸ s₄
+              → State.volatile s₃ ≐ State.volatile s₄ ⊎ State.volatile s₂ ≐ State.volatile s₄
+SpecSC-fᶜ-nof {{ all₂ }} {{ all₃ }} (r sv' ss' _) s₂▸s₃ (s₃▹ • r sv _ _)
+         with splitRTC ([] • fᶜ) s₃▹
+...         | s₃' , ∅ • fᶜ (inj₁ vsᶜ) , s₃'▸s , _ = inj₁ $ vsᶜ <≐> idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
+...         | s₃' , ∅ • fᶜ (inj₂ ssᶜ) , s₃'▸s , _ = inj₂ $ sym-≐ sv' <≐> ss' <≐>
+                                                           idemₛ (mapAll n→sp  all₂) s₂▸s₃ <≐> ssᶜ <≐>
+                                                           idemₛ (mapAll rᶜ→sp all₃) s₃'▸s <≐> sv
 
 module BehavioralCorrectnessAndSnapshotConsistency
   (runSpec : (t : State) (ac : Action) → ∃[ t' ] (t ⟦ ac ⟧▸ t'))
@@ -422,7 +442,7 @@ module BehavioralCorrectnessAndSnapshotConsistency
   data MultiRecovery : Trace → Set where
     init : {tr : Trace} → All RecoveryCrash tr → MultiRecovery (tr • r)
     one  : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → OneRecovery tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
-    zero : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → All Regular×Snapshot tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
+--    zero : {tr₁ tr₂ : Trace} → MultiRecovery tr₁ → All Regular×Snapshot tr₂ → MultiRecovery (tr₁ ⊙ tr₂)
 
   Conformance-all : {tr : Trace} {s s' : Stateᴾ} → s ⟦ tr ⟧ᴾ*▸ s' → {t t' : State} → t ⟦ tr ⟧*▸ t' → Set
   Conformance-all {s' = s'} ∅         {t' = t'} ∅         = ⊤
@@ -482,15 +502,15 @@ module BehavioralCorrectnessAndSnapshotConsistency
     init : {tr : Trace} {all : All RecoveryCrash tr} {s s' : S} (fr : RTC R s (tr • r) s') → MRFrags (init all) fr
     one  : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
          → {tr₂ : Trace} {1r : OneRecovery   tr₂} {s₃    : S} (fr₂ : RTC R s₂ tr₂ s₃) → 1RFrags 1r fr₂ → MRFrags (one mr 1r) (fr₁ ++RTC fr₂)
-    zero : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
-         → {tr₂ : Trace} {all : All Regular×Snapshot tr₂} {s₃ : S} (fr₂ : RTC R s₂ tr₂ s₃) → MRFrags (zero mr all) (fr₁ ++RTC fr₂)
+--    zero : {tr₁ : Trace} {mr : MultiRecovery tr₁} {s₁ s₂ : S} {fr₁ : RTC R s₁ tr₁ s₂} → MRFrags mr fr₁
+--         → {tr₂ : Trace} {all : All Regular×Snapshot tr₂} {s₃ : S} (fr₂ : RTC R s₂ tr₂ s₃) → MRFrags (zero mr all) (fr₁ ++RTC fr₂)
 
   viewMR : {tr : Trace} (mr : MultiRecovery tr) {S : Set} {R : S → Action → S → Set} {s s' : S} (fr : RTC R s tr s') → MRFrags mr fr
   viewMR (init all) fr = init fr
   viewMR (one  {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
   ...  | _ , fr-l , fr-r , refl = one  (viewMR mr fr-l) fr-r (view1R all fr-r)
-  viewMR (zero {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
-  ...  | _ , fr-l , fr-r , refl = zero (viewMR mr fr-l) fr-r
+--  viewMR (zero {tr₁ = tr₁} mr all) fr with splitRTC tr₁ fr
+--  ...  | _ , fr-l , fr-r , refl = zero (viewMR mr fr-l) fr-r
 
   Conformance : {tr : Trace} (mr : MultiRecovery tr)
                 {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → MRFrags mr frP
@@ -498,8 +518,8 @@ module BehavioralCorrectnessAndSnapshotConsistency
   Conformance (init _) {s' = s'} _ _ {t' = t'} _ _ = ObsEquiv s' t'
   Conformance (one mr 1r) .(_ ++RTC frP₂) (one {s₂ = s''} frPs frP₂ frPs₂) .(_ ++RTC frS₂) (one {s₂ = t''} frSs frS₂ frSs₂) =
     Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-1R 1r frP₂ frPs₂ frS₂ frSs₂
-  Conformance (zero mr _) .(_ ++RTC frP₂) (zero {s₂ = s''} frPs frP₂) .(_ ++RTC frS₂) (zero {s₂ = t''} frSs frS₂) =
-    Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-all frP₂ frS₂
+--  Conformance (zero mr _) .(_ ++RTC frP₂) (zero {s₂ = s''} frPs frP₂) .(_ ++RTC frS₂) (zero {s₂ = t''} frSs frS₂) =
+--    Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-all frP₂ frS₂
 
   BC-all : {tr : Trace} → All Regular×Snapshot tr → {s s' : Stateᴾ} {t : State} →
            SR s t → ObsEquiv s t → (frP : s ⟦ tr ⟧ᴾ*▸ s') →
@@ -559,9 +579,9 @@ module BehavioralCorrectnessAndSnapshotConsistency
   BC (one mr x) init-s _ (one {mr = mr₁} {fr₁ = frP₁} frPs₁ {1r = 1r} frP₂ frPs₂) with BC mr init-s _ frPs₁
   ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-1R 1r sr'' oe'' frP₂ frPs₂
   ... | t' , frS₂ , frSs₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , one frSs₁ frS₂ frSs₂ , conf₁ , oe'' , conf₂
-  BC (zero {tr₁ = tr₁} mr all) init-s .(_ ++RTC frP₂) (zero frPs frP₂) with BC mr init-s _ frPs
-  ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-all all sr'' oe'' frP₂
-  ... | t' , frS₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , zero frSs₁ frS₂ , conf₁ , oe'' , conf₂
+--  BC (zero {tr₁ = tr₁} mr all) init-s .(_ ++RTC frP₂) (zero frPs frP₂) with BC mr init-s _ frPs
+--  ... | t , init-t , t'' , sr'' , oe'' , frS₁ , frSs₁ , conf₁ with BC-all all sr'' oe'' frP₂
+--  ... | t' , frS₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , zero frSs₁ frS₂ , conf₁ , oe'' , conf₂
 
   BehavioralCorrectness :
     {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → ( frPs : MRFrags mr frP ) →
@@ -580,6 +600,15 @@ module BehavioralCorrectnessAndSnapshotConsistency
   SnapshotConsistencyᴾ : {s s' : Stateᴾ} {tr : Trace} → (1r : OneRecovery tr) → (fr : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r fr → Set
   SnapshotConsistencyᴾ = SnapshotConsistency λ{(rs , _) (rs' , _) → read rs ≐ read rs'}
 
+  lastr : {S : Set} {s s' : S} {R : S → Action → S → Set} {tr : Trace} (mr : MultiRecovery tr)
+        → (fr : RTC R s tr s') → (frs : MRFrags mr fr) → Σ[ s'' ∈ S ] (R s'' r s')
+  lastr .(init _) .fr (init fr) with fr
+  ... | _ • x =  _ , x
+  lastr ._ ._ (one _ ._ (wᶜ _ _ (fr₃ • x))) = _ , x
+  lastr ._ ._ (one _ ._ (fᶜ _ _ (fr₃ • x))) = _ , x
+  lastr ._ ._ (one _ ._ (wᶜ-nof _ (fr₃ • x))) = _ , x
+  lastr ._ ._ (one _ ._ (fᶜ-nof _ (fr₃ • x))) = _ , x
+
   SC : {s₀ s s' : Stateᴾ} {tr₀ tr : Trace} → (mr : MultiRecovery tr₀) → (1r : OneRecovery tr)
      → Initᴾ s₀ → (fr₀ : s₀ ⟦ tr₀ ⟧ᴾ*▸ s) → MRFrags mr fr₀ → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : 1RFrags 1r frP) → SnapshotConsistencyᴾ 1r frP frPs
   SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BehavioralCorrectness (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
@@ -592,8 +621,10 @@ module BehavioralCorrectnessAndSnapshotConsistency
   ...  | inj₁ req = inj₁ $ Conformance-all-intermediate (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   ...  | inj₂ req = inj₂ $ Conformance-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (wᶜ-nof frP₂ frP₃) |
-     t₀ , init-t₀ , t' , ._ , one frSs ._ (wᶜ-nof {all₂ = all₂} {all₃ = all₃} frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
-       = {!oe-s-t <≐> SpecSC-wᶜ ⦃ all₂ ⦄ ⦃ all₃ ⦄ frS₂ frS₃ <≐> sym-≐ oe-s'-t'!}
+     t₀ , init-t₀ , t' , ._ , one {fr₁ = frS₀} frSs ._ (wᶜ-nof {all₂ = all₂} {all₃ = all₃} frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
+       = oe-s-t <≐> SpecSC-wᶜ-nof ⦃ all₂ ⦄ ⦃ all₃ ⦄ (proj₂ (lastr mr frS₀ frSs)) frS₂ frS₃ <≐> sym-≐ oe-s'-t'
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (fᶜ-nof frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (fᶜ-nof {all₂ = all₂} {all₃ = all₃} frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
-       = {!!}
+       with SpecSC-fᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr _ frSs)) frS₂ frS₃
+  ...  | inj₁ req = inj₁ $ Conformance-all-intermediate frP₂ frS₂ ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
+  ...  | inj₂ req = inj₂ $ oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
