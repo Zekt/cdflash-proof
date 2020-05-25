@@ -10,7 +10,7 @@
 The states of \ProgInv\ is trivial:
 $$\ProgInvState \defeq{} \{\, s \in \ProgState \mid \i{RI(s) \lor CI(s)} \,\}$$
 The transition relation of~\ProgInv,
-$$\ttPI{} \subseteq \i{ProgState^\dagger} \times \i{Action} \times \i{ProgState^\dagger} \qquad \AgdaId{\_\sem{\_}^P{\blacktriangleright}\_} $$
+$$\ttPI{} \subseteq \i{State^P} \times \i{Action} \times \i{State^P} \qquad \AgdaId{\_\sem{\_}^P{\blacktriangleright}\_} $$
 which can be easily shown to be a subset of \i{\ttP{}}, is defined by
 \begin{alignat*}{3}
 	\ttPI{\awa{w}{\actw_{a, d}}} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}{\actw_{a, d}}} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
@@ -25,18 +25,21 @@ which can be easily shown to be a subset of \i{\ttP{}}, is defined by
 	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
 \end{alignat*}
 
-It is easy to prove that every multi-recovery fragment in~\Prog\ is also one in~\ProgInv, so when considering only fragments in~\Prog\ we can work with~\ProgInv.
-
-Crash-determinacy on \ProgInv, which is exactly the same with crash-determinacy on \Prog\ except the states and transition relation it applies to, can be stated as follows.
-\begin{lemma}[crash-determinacy on \ProgInv] \label{theoremPI}
-	For all~$s_0, s', s'', s''' \in \i{ProgState^\dagger}$, following two cases hold:
-\begin{align*}
-	\intertext{Case $\actwc$:}
-	&s_0 \ttsPI{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsPI{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
-	\implies & \i{read(s')} \equiv \i{read(s'')} \\
-	\intertext{Case $\actfc$:}
-	& s_0 \ttsPI{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsPI{\i(\actw \ast)} s'' \conj s'' \ttsPI{\actfc \i{(\actrc \ast)} \actr} s''' \\
-	\implies &\i{read(s')} \equiv \i{read(s''')} \disj \i{read(s'')} \equiv \i{read(s''')}
-\end{align*}
+It is easy to prove that every multi-recovery fragment which starts from a new disk state in~\Prog\ is also one in~\ProgInv, where a new disk state is characterized by the predicate $\AgdaId{\ensuremath{\id{Init^P(s)}}} \defeq \id{Init^R(s)} \land \id{CI(s)}$, so when considering such fragments in~\Prog\ we can work with~\ProgInv\ instead.
+\begin{lemma}[\AgdaId{\id{lift\text-mr}}]
+For every multi-recovery fragment $s \ttsP{\id{tr}} s'$ in \Prog\ where $\id{Init^R(s)}$ holds, there exists a fragment $s \ttsPI{\id{tr}} s'$ such that $\id{Init^P(s)}$, $\id{CI(s)}$ and $\id{RI(s')}$ hold.
 \end{lemma}
-Note that even this lemma is not provable yet, we will prove it later along with \cref{theoremP} once we have the simulation relations defined in next section.
+
+%Snapshot consistency of \ProgInv, which is exactly the same with snapshot consistency of \Prog\ except the states and transition relation it applies to, can be stated as follows.
+%\begin{lemma}[crash-determinacy on \ProgInv] \label{theoremPI}
+%	For all~$s_0, s', s'', s''' \in \i{ProgState^\dagger}$, following two cases hold:
+%\begin{align*}
+%	\intertext{Case $\actwc$:}
+%	&s_0 \ttsPI{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsPI{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
+%	\implies & \i{read(s')} \equiv \i{read(s'')} \\
+%	\intertext{Case $\actfc$:}
+%	& s_0 \ttsPI{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsPI{\i(\actw \ast)} s'' \conj s'' \ttsPI{\actfc \i{(\actrc \ast)} \actr} s''' \\
+%	\implies &\i{read(s')} \equiv \i{read(s''')} \disj \i{read(s'')} \equiv \i{read(s''')}
+%\end{align*}
+%\end{lemma}
+%Note that even this lemma is not provable yet, we will prove it later along with \cref{theoremP} once we have the simulation relations defined in next section.
