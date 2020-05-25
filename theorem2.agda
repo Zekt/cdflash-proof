@@ -356,7 +356,6 @@ module Prog
   (RawStateᴾ : Set) (_⟦_⟧ᴿ▸_ : RawStateᴾ → Action → RawStateᴾ → Set)
   (RI CI : RawStateᴾ → Set)
   (AR CR : RawStateᴾ → State → Set)
-  (Pre : RawStateᴾ → Action → Set )
   (RIRI : {s s' : RawStateᴾ} {ac : Action} → Regular×Snapshot ac → s ⟦ ac ⟧ᴿ▸ s' → RI s → RI s')
   (ARAR : {s s' : RawStateᴾ} {t t' : State} {ac : Action} → Regular×Snapshot ac
         → s ⟦ ac ⟧ᴿ▸ s' → t ⟦ ac ⟧▸ t' → RI s × AR s t → AR s' t')
@@ -395,9 +394,6 @@ module Prog
   Stateᴾ : Set
   Stateᴾ = Σ[ rs ∈ RawStateᴾ ] Inv rs
 
-  unpack : Stateᴾ → RawStateᴾ
-  unpack = proj₁
-
   data Initᴾ : Stateᴾ → Set where
     init : Initᴿ rs → Initᴾ (rs , crash cinv)
 
@@ -420,6 +416,47 @@ module Prog
     erᶜ : rs ⟦ erᶜ ⟧ᴿ▸ rs'              → (rs , normal rinv) ⟦ erᶜ ⟧ᴾ▸ (rs' , crash cinv')
 
   _⟦_⟧ᴾ*▸_ = RTC  _⟦_⟧ᴾ▸_
+
+  lift-n×s : {tr : Trace} {{_ : All Regular×Snapshot tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
+             ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-n×s ∅ = _ , ∅
+  lift-n×s {{all ∷ w}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI w rs''▸rs' rinv'' , s*▸s'' • w rs''▸rs'
+  lift-n×s {{all ∷ f}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI f rs''▸rs' rinv'' , s*▸s'' • f rs''▸rs'
+  lift-n×s {{all ∷ cp}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI cp rs''▸rs' rinv'' , s*▸s'' • cp rs''▸rs'
+  lift-n×s {{all ∷ er}} (rs*▸rs'' • rs''▸rs') =
+    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
+    in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
+
+  lift-n : {tr : Trace} {{_ : All Regular tr}} → rs ⟦ tr ⟧ᴿ*▸ rs'
+         → ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-n {{all}} rs*▸rs' =
+    lift-n×s {{(mapAll (λ{w → w; cp → cp; er → er}) all)}} rs*▸rs'
+
+  lift-rᶜ : {tr : Trace} {{_ : All RecoveryCrash tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
+            ∃[ cinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , crash cinv'))
+  lift-rᶜ ∅ = _ , ∅
+  lift-rᶜ {{all ∷ rᶜ}} (rs*▸rs'' • rs''▸rs') =
+    let (cinv'' , s*▸s'') = lift-rᶜ {{all}} rs*▸rs''
+    in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
+
+  lift-mr : {tr : Trace} (mr : MultiRecovery tr) (fr : rs ⟦ tr ⟧ᴿ*▸ rs') → MRFrags mr fr → Initᴿ rs
+          → ∃[ cinv ] ∃[ rinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+  lift-mr ._ ._ (init {all = all} fr) init-rs with fr
+  ... | fr₀ • rr with lift-rᶜ {cinv = initᴿ-CI _ init-rs} {{all}} fr₀
+  ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr
+  lift-mr ._ ._ (one frs₀ fr frs) init-rs with lift-mr _ _ frs₀ init-rs
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ =
+    let (rinv₁ , fr₁ᴾ) = lift-n×s {rinv = rinv₀} {{all₁}} fr₁
+    in  {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
 
   ObsEquiv : Stateᴾ → State → Set
   ObsEquiv (rs , _) t = read rs ≐ State.volatile t
@@ -593,44 +630,3 @@ module Prog
        with SpecSC-fᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr _ frSs)) frS₂ frS₃
   ...  | inj₁ req = inj₁ $ Conformance-all-intermediate frP₂ frS₂ ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   ...  | inj₂ req = inj₂ $ oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
-
-  lift-n×s : {tr : Trace} {{_ : All Regular×Snapshot tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
-             ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-n×s ∅ = _ , ∅
-  lift-n×s {{all ∷ w}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI w rs''▸rs' rinv'' , s*▸s'' • w rs''▸rs'
-  lift-n×s {{all ∷ f}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI f rs''▸rs' rinv'' , s*▸s'' • f rs''▸rs'
-  lift-n×s {{all ∷ cp}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI cp rs''▸rs' rinv'' , s*▸s'' • cp rs''▸rs'
-  lift-n×s {{all ∷ er}} (rs*▸rs'' • rs''▸rs') =
-    let (rinv'' , s*▸s'') = lift-n×s {{all}} rs*▸rs''
-    in  RIRI er rs''▸rs' rinv'' , s*▸s'' • er rs''▸rs'
-
-  lift-n : {tr : Trace} {{_ : All Regular tr}} → rs ⟦ tr ⟧ᴿ*▸ rs'
-         → ∃[ rinv' ] ((rs , normal rinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-n {{all}} rs*▸rs' =
-    lift-n×s {{(mapAll (λ{w → w; cp → cp; er → er}) all)}} rs*▸rs'
-
-  lift-rᶜ : {tr : Trace} {{_ : All RecoveryCrash tr}} → rs ⟦ tr ⟧ᴿ*▸ rs' →
-            ∃[ cinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , crash cinv'))
-  lift-rᶜ ∅ = _ , ∅
-  lift-rᶜ {{all ∷ rᶜ}} (rs*▸rs'' • rs''▸rs') =
-    let (cinv'' , s*▸s'') = lift-rᶜ {{all}} rs*▸rs''
-    in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
-
-  lift-mr : {tr : Trace} (mr : MultiRecovery tr) (fr : rs ⟦ tr ⟧ᴿ*▸ rs') → MRFrags mr fr → Initᴿ rs
-          → ∃[ cinv ] ∃[ rinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
-  lift-mr ._ ._ (init {all = all} fr) init-rs with fr
-  ... | fr₀ • rr with lift-rᶜ {cinv = initᴿ-CI _ init-rs} {{all}} fr₀
-  ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr
-  lift-mr ._ ._ (one frs₀ fr frs) init-rs with lift-mr _ _ frs₀ init-rs
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ =
-    let (rinv₁ , fr₁ᴾ) = lift-n×s {rinv = rinv₀} {{all₁}} fr₁
-    in  {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
