@@ -2,20 +2,30 @@
 
 \section{The Sub-System~\ProgInv\ with Invariants}
 \label{sec:ProgInv}
-\ProgInv\ is a transition system whose states \i{ProgState^\dagger} is a subset of \i{ProgState} \---- states that satisfies either representation invariants or crash invariants. We define \ProgInv\ because as we will see, the premise fragments of both cases in \cref{theoremP} are composed of transitions in \ProgInv. In other words, the states in these two fragments always satisfies either \i{RI} or \i{CI}. Thus it suffices to define simulation of \ProgInv\ by \Spec\ to prove crash-determinacy on~\ProgInv, from which crash-determinacy on~\Prog\ could be derived. \\
+\ProgInv\ is a disk model whose set of states~\AgdaId{\ProgInvState}\ is a subset of \ProgState\ --- states that satisfy either $\id{RI}$~or~$\id{CI}$.
+%We define \ProgInv\ because, as we will see, all the multi-recovery fragments in~\Prog\ are included in \ProgInv.
+%In other words, the states in these fragments always satisfy either \i{RI} or \i{CI}.
+%Thus it suffices to define a simulation of \ProgInv\ by \Spec\ to prove the behavioral correctness on~\ProgInv, from which the snapshot consistency of~\Prog\ could be derived.
+
 The states of \ProgInv\ is trivial:
-$$\i{ProgState^{\dagger}} \defeq{} \{\, s \in \i{ProgState} \mid \i{RI(s) \lor CI(s)} \,\}$$
-The transition relation of~\ProgInv:
-$$\ttPI{} \subseteq \i{ProgState^\dagger} \times \i{Action} \times \i{ProgState^\dagger}$$
+$$\ProgInvState \defeq{} \{\, s \in \ProgState \mid \i{RI(s) \lor CI(s)} \,\}$$
+The transition relation of~\ProgInv,
+$$\ttPI{} \subseteq \i{ProgState^\dagger} \times \i{Action} \times \i{ProgState^\dagger} \qquad \AgdaId{\_\sem{\_}^P{\blacktriangleright}\_} $$
 which can be easily shown to be a subset of \i{\ttP{}}, is defined by
 \begin{alignat*}{3}
-	\ttPI{\awa{w}\actw} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actw} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+	\ttPI{\awa{w}{\actw_{a, d}}} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}{\actw_{a, d}}} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
 	\ttPI{\awa{w}\actf} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actf} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+    \ttPI{\awa{w}\actcp} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actcp} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
+    \ttPI{\awa{w}\actes} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actes} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
 	\ttPI{\awa{w}\actr} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actr} s' \conj \i{CI(s)} \conj \i{RI(s')} \,\} \\
-	\ttPI{\awa{w}\actwc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actwc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}{\actwc_{a, d}}} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}{\actwc_{a, d}}} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
 	\ttPI{\awa{w}\actfc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actfc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actcpc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actcpc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
+	\ttPI{\awa{w}\actesc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actesc} s' \conj \i{RI(s)} \conj \i{CI(s')} \,\} \\
 	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
 \end{alignat*}
+
+It is easy to prove that every multi-recovery fragment in~\Prog\ is also one in~\ProgInv, so when considering only fragments in~\Prog\ we can work with~\ProgInv.
 
 Crash-determinacy on \ProgInv, which is exactly the same with crash-determinacy on \Prog\ except the states and transition relation it applies to, can be stated as follows.
 \begin{lemma}[crash-determinacy on \ProgInv] \label{theoremPI}

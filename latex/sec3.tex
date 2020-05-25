@@ -3,58 +3,90 @@
 \section{The Specification Transition System~\Spec}
 \label{sec:Spec}
 
-For the transition system~\Spec, its states are those in the set
-$$ \i{SpecState} \defeq (\i{Addr} \to \i{Data}) \times (\i{Addr} \to \i{Data}) $$
-which contains pairs of mappings from \i{Addr} to \i{Data}; these two mappings represent the volatile and stable parts of a state in the specification respectively. Similarly to $\i{read}$ in \Prog, \\
-\todo{define \i{volatile} and \i{stable}}\
-$$ \i{volatile}: \i{ProgState} \to (\i{Addr} \to \i{Data}) $$
-is a function that returns the mapping of the volatile part of a state in \Spec .
-The actions of~\Spec\ are the same as those of~\Prog.
+For the disk model~\Spec, its states are those in the set
+$$ \AgdaId{\SpecState} \defeq (\i{Addr} \to \i{Data}) \times (\i{Addr} \to \i{Data}) \times \mathbb N $$
+each of which contains a pair of mappings from \i{Addr} to \i{Data} and a natural number; these two mappings represent the volatile and stable parts of a state in the specification, and the natural number is the write count.
+Similarly to $\i{read}$ in \Prog, the functions
+\begin{align*}
+\i{volatile} &: \SpecState \to (\i{Addr} \to \i{Data}) & \AgdaId{\id{State}.\id{volatile}} \\
+\i{stable} &: \SpecState \to (\i{Addr} \to \i{Data}) & \AgdaId{\id{State}.\id{stable}}
+\end{align*}
+extract the respective mappings from a \Spec-state.
+The new states of~\Spec\ are characterized by the predicate $\AgdaId{\id{Init}(s)} \defeq \forall a.\ \id{stable}(s)(a) = \id{defaultData}$ where $\AgdaId{\id{defaultData}} \in \id{Data}$ is some default value for memory cells.
 The transition relation
-$$ {\ttS{}} \subseteq \i{SpecState} \times \i{Action} \times \i{SpecState} $$
-is defined by
-\todo{revise}
-\begin{alignat*}{3}
-	\ttS{\awa{ww}{\actw_{\i{addr}, \i{data}}}} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \\
-	& \omit \span \span \conj \i{volatile(s)[addr \mapsto data]} \equiv \i{volatile(s')} \,\} \\
-	\ttS{\awa{ww}\actf} \defeq{}& \{\, (s, s')&& \mid \i{volatile(s)} \equiv \i{volatile(s')}\\
-	& \quad && \hmid \conj \i{volatile(s)} \conj \i{stable(s')} \,\} \\
-	\ttS{\awa{ww}\actr} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{volatile(s')}\\
-	& \quad && \hmid \conj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\awa{ww}\actwc} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\awa{ww}\actfc} \defeq{}& \{\, (s, s')&& \mid \i{volatile(s)} \equiv \i{stable(s')} \\
-	& \quad && \hmid \disj \i{stable(s)} \equiv \i{stable(s')} \,\} \\
-	\ttS{\awa{ww}\actrc} \defeq{}& \{\, (s, s')&& \mid \i{stable(s)} \equiv \i{stable(s')} \,\}
-\end{alignat*}
-where $[x \mapsto v]$ is a function of function that remaps an address to a new value
-$$f[x \mapsto v](y) \defeq \begin{cases} v & \text{if } y = x \\ f(x) & \text{otherwise} \end{cases} $$
-Then we are able to state and prove crash-determinacy on \Spec.
-\begin{lemma}[crash-determinacy on \Spec]\label{cdS}
-	Similarly to \cref{theoremP}, for all $s, s',s'', s''' \in \i{SpecState}$, there are two possible situations where a recovery is needed, and we will prove that crash-determinacy holds in both cases:
-	\begin{align*}
-		\intertext{Case $\actwc$:}
-			&s \ttsS{\i{((\actw \lor \actf)\ast)} \actf} s' \conj s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc\ast)} \actr} s'' \\
-			\implies &\i{volatile(s')} \equiv \i{volatile(s'')} 
-		\intertext{Case $\actfc$:}
-		&s \ttsS{(\i{(\actw \lor \actf)\ast}) \actf} s' \conj
-	  s' \ttsS{\i{\actw\ast}} s'' \conj
-	  s'' \ttsS{\actfc  (\i{\actrc\ast}) \actr } s'''\\
-		\implies &\i{volatile(s')} \equiv \i{volatile(s''')} \lor \i{volatile(s'')} \equiv \i{volatile(s''')}
-	\end{align*}
-\end{lemma}
-\begin{proof}[Proof of case\ \i{\actwc}.]
-	$s'$ is transited from some $s \in \i{SpecState}$ by \i{\ttS{\actf}}, so
-		$$\i{volatile(s')} \equiv \i{volatile(s)} \equiv \i{stable(s')}$$
-	since any state transited by \i{\ttS{\actw}} , \i{\ttS{\actwc}} or \i{\ttS{\actrc}} has its stable unchanged from the state it's transited from, there is an intermediate state $s'_i$ such that
-		$$s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc*)}} s'_i \conj s'_i \ttS{\actr} s'' \conj stable(s') \equiv stable(s'_i)$$
-	, by \i{\ttS{\actr}} we know that $\i{stable(s'_i) \equiv volatile(s'')}$, thus we have
-		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
-\end{proof}
-\begin{proof}[Proof of case\ \i{\actfc}]
-	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \ttS{\actfc} s''_i \conj s''_i \ttsS{\actrc*} s''_j \conj s''_j  \ttS{\actr} s'''$$
-	then by case analysis on $s'' \ttS{\actfc} s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
-	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
-	\mbox{case-$\actwc$}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
-	if $\i{stable(s'') \equiv stable(s''_i)}$, the proof is exactly the same with \mbox{case-$\actwc$}, thus $$\i{volatile(s') \equiv volatile(s''')}$$
-\end{proof}
-This lemma, combined with simulation between \Spec\ and \ProgInv, will be used to establish proof of crash-determinacy on \ProgInv in later sections.
+$$ {\ttS{}} \subseteq \SpecState \times \i{Action} \times \SpecState \qquad \AgdaId{\_\sem{\_}{\blacktriangleright}\_} $$
+has been defined in figure~4 in the main text.
+
+Next we state snapshot consistency generically for disk models.
+To do so we will need to talk about sequences of transitions and particular forms of traces (i.e., sequences of actions, which are of type $\AgdaId{\id{Trace}}$), and some general definitions will be helpful.
+Then we are able to prove the snapshot consistency on \Spec.
+
+\begin{definition}[fragments, \AgdaId{\id{RTC}}]\label{def:frag}
+Let $T = (S, \Lambda, \ttIn{}{})$~be a labelled transition system.
+A \emph{fragment} in~$T$ is a sequence of transitions
+$$ s_0 \ttIn{a_1}{} s_1 \ttIn{a_2}{} \cdots \ttIn{a_n}{} s_n $$
+where $s_i \in S$ and $a_j \in \Lambda$ for all $i$~and~$j$.
+We sometimes omit the intermediate states and write
+$$ s_0 \ttsIn{a_1,\,a_2,\,\ldots,\,a_n}{} s_n $$
+Note that a fragment may contain no transitions, in which case the starting and ending states are the same: 
+$$ s_0 \ttsIn{\vphantom{a_n}}{} s_0 $$
+\end{definition}
+
+\begin{definition}[one-recovery traces, \AgdaId{\id{OneRecovery}}]
+A \emph{one-recovery} trace has one of the following forms:
+\begin{itemize}
+\item $a_1, \ldots, a_{k-1}, \actf, b_1, \ldots, b_\ell, \actwc, (\actrc)^m, \actr$\quad,
+\item $a_1, \ldots, a_{k-1}, \actf, b_1, \ldots, b_\ell, \actfc, (\actrc)^m, \actr$\quad,
+\item $b_1, \ldots, b_\ell, \actwc, (\actrc)^m, \actr$\quad, and
+\item $b_1, \ldots, b_\ell, \actfc, (\actrc)^m, \actr$\quad,
+\end{itemize}
+where $a_i$~are successful regular or snapshot operations and $b_j$~are successful regular operations.
+\end{definition}
+This is the trace part of one-recovery fragments defined in the main text, expanded to four cases to simplify the subsequent proof structure.
+
+\begin{definition}[multi-recovery traces, \AgdaId{\id{MultiRecovery}}]
+The set of \emph{multi-recovery} traces is inductively defined by the following two rules:
+\begin{itemize}
+\item a trace of the form $(\actrc)^m\,\actr$ is a multi-recovery trace, and
+\item the concatenation $\id{tr}, \id{tr}'$ of a multi-recovery trace $\id{tr}$ and a one-recovery trace $\id{tr}'$ is a multi-recovery trace.
+\end{itemize}
+\end{definition}
+
+Note that, differently from the main text, the two notions above are defined on traces rather than fragments; to reconcile the difference, we will say that a fragment is one-/multi-recovery when its trace is one-/multi-recovery.
+Also note that the definition of multi-recovery fragments in this appendix is more specific than that in the main text (where the first state is required to be new and there are some trailing transitions), but below we will state our theorems in a way that makes them apply to the multi-recovery fragments as defined in the main text.
+
+\begin{definition}[snapshot consistency of a one-recovery fragment, \AgdaId{\id{SnapshotConsistency}}]
+A one-recovery fragment~$\id{fr}$ is \emph{snapshot-consistent} under an equivalence relation~$\id{ER}$ if
+\begin{itemize}
+\item $\id{ER}(s_2, s_4)$ \\
+when $\id{fr} = s_1 \ttsIn{a_1,\, \ldots,\, a_{k-1}}{} s_2 \ttsIn{\actf,\, b_1,\, \ldots,\, b_\ell,\, \actwc,\, (\actrc)^m,\, \actr}{} s_4$,
+\item $\id{ER}(s_3, s_4)$ or $\id{ER}(s_2, s_4)$ \\
+when $\id{fr} = s_1 \ttsIn{a_1,\, \ldots,\, a_{k-1}}{} s_2 \ttsIn{\actf,\, b_1,\, \ldots,\, b_\ell}{} s_3 \ttsIn{\actfc,\, (\actrc)^m,\, \actr}{} s_4$,
+\item $\id{ER}(s_2, s_4)$ \\
+when $\id{fr} = s_2 \ttsIn{b_1,\, \ldots,\, b_\ell,\, \actwc,\, (\actrc)^m,\, \actr}{} s_4$, or
+\item $\id{ER}(s_3, s_4)$ or $\id{ER}(s_2, s_4)$ \\
+when $\id{fr} = s_2 \ttsIn{b_1,\, \ldots,\, b_\ell}{} s_3 \ttsIn{\actfc,\, (\actrc)^m,\, \actr}{} s_4$.
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[snapshot consistency of \Spec, \AgdaId{\id{Spec}.\id{SC}}]\label{cdS}
+For every fragment $t_0 \ttsIn{\id{tr}}{} t_1 \ttsIn{\id{tr}'}{} t_2$ in~\Spec\ where $\id{Init}(t_0)$ holds, $\id{tr}$ is multi-recovery, and $\id{tr}'$~is one-recovery, the sub-fragment $t_1 \ttsIn{\id{tr'}}{} t_2$ is snapshot-consistent under the equivalence relation $\id{ER}(t, t') \defeq \id{volatile}(t) = \id{volatile}(t')$.
+\end{theorem}
+%\begin{proof}[Proof of case\ \i{\actwc}.]
+%	$s'$ is transited from some $s \in \i{SpecState}$ by \i{\ttS{\actf}}, so
+%		$$\i{volatile(s')} \equiv \i{volatile(s)} \equiv \i{stable(s')}$$
+%	since any state transited by \i{\ttS{\actw}} , \i{\ttS{\actwc}} or \i{\ttS{\actrc}} has its stable unchanged from the state it's transited from, there is an intermediate state $s'_i$ such that
+%		$$s' \ttsS{\i{(\actw\ast)} \actwc \i{(\actrc*)}} s'_i \conj s'_i \ttS{\actr} s'' \conj stable(s') \equiv stable(s'_i)$$
+%	, by \i{\ttS{\actr}} we know that $\i{stable(s'_i) \equiv volatile(s'')}$, thus we have
+%		$$\i{volatile(s') \equiv stable(s') \equiv stable(s'_i) \equiv volatile(s'')}$$
+%\end{proof}
+%\begin{proof}[Proof of case\ \i{\actfc}]
+%	We can find two intermediate state $s''_i$, $s''_j$ , such that $$s'' \ttS{\actfc} s''_i \conj s''_i \ttsS{\actrc*} s''_j \conj s''_j  \ttS{\actr} s'''$$
+%	then by case analysis on $s'' \ttS{\actfc} s''_i$, we know that either $$\i{volatile(s'') \equiv stable(s''_i)}$$ or $$\i{stable(s'') \equiv stable(s''_i)}$$
+%	if $\i{volatile(s'') \equiv stable(s''_i)}$, by substituting $s'$ with $s''$ in
+%	\mbox{case-$\actwc$}, we can obtain $$\i{volatile(s'') \equiv volatile(s''')}$$
+%	if $\i{stable(s'') \equiv stable(s''_i)}$, the proof is exactly the same with \mbox{case-$\actwc$}, thus $$\i{volatile(s') \equiv volatile(s''')}$$
+%\end{proof}
+
+On the surface this theorem may appear weaker than the one claimed in the main text, but we can easily show that every one-recovery sub-fragment $\id{fr}$ in a multi-recovery fragment is snapshot-consistent by applying the theorem to the sub-fragment ending with $\id{fr}$, so this theorem is in fact general enough.
+The theorem, combined with the simulation between \Spec~and~\ProgInv, will be used to establish the proof of the snapshot consistency of~\ProgInv\ in later sections.
