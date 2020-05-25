@@ -446,17 +446,17 @@ module Prog
     in  CICI rs''▸rs' cinv'' , s*▸s'' • rᶜ rs''▸rs'
 
   lift-mr : {tr : Trace} (mr : MultiRecovery tr) (fr : rs ⟦ tr ⟧ᴿ*▸ rs') → MRFrags mr fr → Initᴿ rs
-          → ∃[ cinv ] ∃[ rinv' ] ((rs , crash cinv) ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv'))
+          → ∃[ cinv ] ∃[ rinv' ] let s = (rs , crash cinv) in (s ⟦ tr ⟧ᴾ*▸ (rs' , normal rinv')) × Initᴾ s
   lift-mr ._ ._ (init {all = all} fr) init-rs with fr
   ... | fr₀ • rr with lift-rᶜ {cinv = initᴿ-CI _ init-rs} {{all}} fr₀
-  ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr
+  ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr , init init-rs
   lift-mr ._ ._ (one frs₀ fr frs) init-rs with lift-mr _ _ frs₀ init-rs
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ =
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s =
     let (rinv₁ , fr₁ᴾ) = lift-n×s {rinv = rinv₀} {{all₁}} fr₁
     in  {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
 
   ObsEquiv : Stateᴾ → State → Set
   ObsEquiv (rs , _) t = read rs ≐ State.volatile t
