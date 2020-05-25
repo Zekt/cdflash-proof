@@ -1,4 +1,4 @@
-open import Data.Bool using (Bool; true; false)
+open import Data.Bool using (Bool; true; false; _∧_)
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; sym; subst)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
@@ -11,7 +11,7 @@ open import Data.List.Reverse using (Reverse; reverseView)
 open import Function using (_$_)
 
 module theorem2
-  (Addr : Set) (_≟_ : Addr → Addr → Bool) (_≤?MAXWCNT : Addr → Bool)
+  (Addr : Set) (_≟_ : Addr → Addr → Bool) (_≤?MAXADDR : Addr → Bool) (_≤?MAXWCNT : ℕ → Bool)
   (Data : Set) (defaultData : Data)
   where
 
@@ -213,15 +213,15 @@ module Spec where
     t  : State
     t' : State
 
-  update : (Addr → Data) → Addr → Data → (Addr → Data)
-  update s addr dat i with addr ≤?MAXWCNT
-  update s addr dat i | false = s i
-  update s addr dat i | true with addr ≟ i
-  update s addr dat i | true | true  = dat
-  update s addr dat i | true | false = s i
+  update : (Addr → Data) → ℕ → Addr → Data → (Addr → Data)
+  update s wcnt addr dat i with (addr ≤?MAXADDR) ∧ (wcnt ≤?MAXWCNT)
+  update s wcnt addr dat i | false = s i
+  update s wcnt addr dat i | true with addr ≟ i
+  update s wcnt addr dat i | true | true  = dat
+  update s wcnt addr dat i | true | false = s i
 
   data Step (s s' : State) : Action → Set where
-    w   : update (State.volatile s) addr dat ≐ State.volatile s'
+    w   : update (State.volatile s) (State.w-count s) addr dat ≐ State.volatile s'
         → State.stable s ≐ State.stable s'
         → suc (State.w-count s) ≡ State.w-count s'
         → Step s s' w[ addr ↦ dat ]
@@ -277,8 +277,8 @@ module Spec where
     stb-erᶜ : StbP erᶜ
     stb-erᶜ = record { preserve = λ{(erᶜ ss) → ss}}
 
-  idemₛ : All StbP frag
-        → ∀ {s s' : State} → s ⟦ frag ⟧*▸ s'
+  idemₛ : {tr : Trace} → All StbP tr
+        → ∀ {s s' : State} → s ⟦ tr ⟧*▸ s'
         → State.stable s ≐ State.stable s'
   idemₛ [] ∅ = λ{_ → refl}
   idemₛ (all ∷ x) (s2s'' • s''2s') =
