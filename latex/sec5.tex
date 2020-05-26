@@ -2,39 +2,49 @@
 
 \section{Simulation of~\ProgInv\ by~\Spec}
 \label{sec:sim}
-Recall that to establish \cref{theoremP}, we first have to define simulation between \Spec\ and \Prog, then derive crash-determinacy on \Prog\ from it. Two types of simulation relations, the abstract relation $\i{AR}$ and crash relation $\i{CR}$, which are transformed or preserved on states that satisfies certain invariants(i.e. states in \ProgInv), have been proved with a SMT solver, thus are made assumptions.
-\begin{assumption}[Per Operation Correctness]\label{PerOpCorrect}
-	For all $s, s_0 \in \i{ProgState^\dagger}$, $t, t_0 \in \i{SpecState}$, the following are assumed:
+To establish \cref{theoremP}, we first have to define simulation between \Spec\ and \Prog, from which the behavioral correctness  can be proved, which derives the snapshot consistency on \Prog. Two kinds of abstraction relations, normal abstraction relation $\AgdaId{\i{AR}}$ and crashed abstraction relation $\AgdaId{\i{CR}}$, which are transformed or preserved on states that satisfies certain invariants(i.e. states in \ProgInv), have been proved with an SMT solver, thus are made assumptions.
+\begin{assumption}[per operation correctness]\label{PerOpCorrect}
+	For all $s, s' \in \ProgInvState$, $t, t' \in \SpecState$, the following are assumed:
 \begin{align*}
-s \ttPI{\awa{\actw}{\actw }} s' \conj t \ttS{\awa{\actw}{\actw }} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actw }} s' \conj t \ttS{\awa{\actw}{\actw }} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t') \tag*{\AgdaId{\id{ARAR}}}\\
 s \ttPI{\awa{\actw}{\actf }} s' \conj t \ttS{\awa{\actw}{\actf }} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
-s \ttPI{\awa{\actw}{\actwc}} s' \conj t \ttS{\awa{\actw}{\actwc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
+s \ttPI{\awa{\actw}{\actcp}} s' \conj t \ttS{\awa{\actw}{\actcp}} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actes}} s' \conj t \ttS{\awa{\actw}{\actes}} t' \conj \i{AR}(s, t) &\implies \i{AR}(s', t')\\
+s \ttPI{\awa{\actw}{\actwc}} s' \conj t \ttS{\awa{\actw}{\actwc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\tag*{\AgdaId{\id{ARCR}}}\\
 s \ttPI{\awa{\actw}{\actfc}} s' \conj t \ttS{\awa{\actw}{\actfc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
-s \ttPI{\awa{\actw}{\actr }} s' \conj t \ttS{\awa{\actw}{\actr }} t' \conj \i{CR}(s, t) &\implies \i{AR}(s', t')\\
-s \ttPI{\awa{\actw}{\actrc}} s' \conj t \ttS{\awa{\actw}{\actrc}} t' \conj \i{CR}(s, t) &\implies \i{CR}(s', t')
+s \ttPI{\awa{\actw}{\actcpc}} s' \conj t \ttS{\awa{\actw}{\actcpc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
+s \ttPI{\awa{\actw}{\actesc}} s' \conj t \ttS{\awa{\actw}{\actesc}} t' \conj \i{AR}(s, t) &\implies \i{CR}(s', t')\\
+s \ttPI{\awa{\actw}{\actr }} s' \conj t \ttS{\awa{\actw}{\actr }} t' \conj \i{CR}(s, t) &\implies \i{AR}(s', t')\tag*{\AgdaId{\id{CRAR}}}\\
+s \ttPI{\awa{\actw}{\actrc}} s' \conj t \ttS{\awa{\actw}{\actrc}} t' \conj \i{CR}(s, t) &\implies \i{CR}(s', t')\tag*{\AgdaId{\id{CRCR}}}
 \end{align*}
 \end{assumption}
-As well proved with a solver, for a pair of \i{s \in ProgState^\dagger} and \i{t \in SpecState} that satisfies abstract relation, the content of $s$ is the same with the content of the volatile part of $t$:
-\begin{assumption}[Observational Equivalence]\label{ObsEquiv}
-	\begin{multline*}
-	 \forall \i{s} \in \i{ProgState^\dagger},t \in \i{SpecState} \ldotp \\
-	 \i{AR(s, t)} \implies \i{read(s)} \equiv \i{volatile(t)} \\
-	\end{multline*}
+For proof convenience, we define simulation relation between a state in \ProgInvState\ and a state in \SpecState\ as either $\i{AR}$ or $\i{CR}$ holds between them.
+\begin{definition}[simulation relation, \AgdaId{\id{SR}}]
+    $$\i{SR(s, t)} \defeq \i{AR(s, t)} \lor \i{CR(s, t)}$$
+\end{definition}
+As well proved with an SMT solver, for every pair of \i{s \in \ProgInvState} and \i{t \in \SpecState} that satisfies the normal abstraction relation $AR(s,t)$, \emph{observational equivalence} holds, that the content of~$s$ is equivalent to the content of the volatile part of~$t$.
+\begin{assumption}[\AgdaId{\id{AR{\Rightarrow}ObsEquiv}}]\label{ObsEquiv}
+	$$
+	 \forall \i{s} \in \ProgInvState,t \in \SpecState \ldotp
+	 \i{AR(s, t)} \implies \i{read(s)} \equiv \i{volatile(t)}
+	$$
 \end{assumption}
-Then we can state and prove that the simulation relation is preserved between two states in~\ProgInv\ and~\Spec\ by transitions that are index by the same fragment:
-\begin{lemma}\label{lemma-1}
+
+Then we can state that the simulation relation is preserved between \Prog\ and~\Spec. 
+
+\begin{lemma}[\AgdaId{\id{runSimSR}}]\label{lemma-1}
+%    If $\i{SR}$ holds between a pair of states $s \in \ProgInvState$ and $t \in \SpecState$, and~$s'~\in~\ProgInvState$ is a state after a sequence of actions performed on~$s$, there always exists a state  $t' \in \SpecState$ such that $\i{SR}$ between~$t$~and~$t'$ holds, while $t'$ is a state after the same sequence of actions performed on $t$.
 	\begin{align*}
-		&\i{SR(s, t)} \defeq \i{AR(s, t)} \lor \i{CR(s, t)}\\
-		&\forall s, s' \in \i{ProgState^\dagger}, t \in \i{SpecState}, \i{ef} \in \i{Fragment} \ldotp\\
-		&\qquad \qquad s \ttsPI{\i{ef}} s'  \conj \i{SR(s, t)} \implies \exists t' \ldotp t \ttsS{\i{ef}} t' \conj \i{SR(s', t')} \\
+		&\forall s, s' \in \ProgInvState, t \in \SpecState, \i{tr} \in \i{Trace} \ldotp\\
+		&\qquad \qquad s \ttsPI{\i{tr}} s'  \conj \i{SR(s, t)} \implies \exists t' \ldotp t \ttsS{\i{tr}} t' \conj \i{SR(s', t')} \\
 	\end{align*}
 \end{lemma}
-	\begin{onehalfspacing}
-\begin{proof}
-	\todo{elaborate why there is always a next state.}
-	There exists $t' \in SpecState$, such that $t \ttsS{\i{ef}} t'$, and by applying \cref{PerOpCorrect} repeatedly, we know that~$\i{s \ttsPI{\i{ef}} s'}$, $\i{t \ttsS{\i{ef}} t'}$ and~$\i{AR(s, t)} \lor \i{CR(s, t)}$ implies either~$\i{AR(s', t')}$ or~$\i{CR(s', t')}$, as sketched in \cref{fig:sketch1}.
-\end{proof}
-	\end{onehalfspacing}
+%	\begin{onehalfspacing}
+%\begin{proof}
+%	\todo{elaborate why there is always a next state.}
+%	There exists $t' \in SpecState$, such that $t \ttsS{\i{ef}} t'$, and by applying \cref{PerOpCorrect} repeatedly, we know that~$\i{s \ttsPI{\i{ef}} s'}$, $\i{t \ttsS{\i{ef}} t'}$ and~$\i{AR(s, t)} \lor \i{CR(s, t)}$ implies either~$\i{AR(s', t')}$ or~$\i{CR(s', t')}$, as sketched in \cref{fig:sketch1}.
+%\end{proof}
+%	\end{onehalfspacing}
 	\begin{figure}[h] \centering
 \begin{tikzpicture}
   \matrix (m) [matrix of math nodes,row sep=3em,column sep=4em,minimum width=2em]
@@ -43,11 +53,32 @@ Then we can state and prove that the simulation relation is preserved between tw
 	 t & \vphantom{t}\smash{\exists t'} \\};
   \path[-stealth]
 	(m-1-1) edge [dashed, -] node [left] {$\i{SR}$} (m-2-1)
-			edge [->>] node [midway, above] {$ \i{ef} $} node [at end, below=-0.1em] {\scriptsize{\ProgInv}}  (m-1-2)
-	(m-2-1) edge [->>] node [midway, above] {$ \i{ef} $} node [at end, below=-0.1em] {\scriptsize{\Spec}} (m-2-2)
+			edge [->>] node [midway, above] {$ \i{tr} $} node [at end, below=-0.1em] {\scriptsize{\ProgInv}}  (m-1-2)
+	(m-2-1) edge [->>] node [midway, above] {$ \i{tr} $} node [at end, below=-0.1em] {\scriptsize{\Spec}} (m-2-2)
 	(m-1-2) edge [dashed, -] node [right] {$\i{SR}$} (m-2-2);
 \end{tikzpicture}
-		\caption{Proof sketch of \cref{lemma-1}}
+		\caption{Illustration diagram of \cref{lemma-1}}
 \label{fig:sketch1}
 	\end{figure}
-Based on these assumptions and \cref{lemma-1}, we will prove \cref{theoremPI} and \cref{theoremP} in next section.
+
+Note that, our goal is to establish behavioral correctness and snapshot consistency of multi-recovery fragments defined in the main text, whose traces are of the form $$(r^c)^m, r, \i{tr}_1,...,\i{tr}_n,\i{tr'}$$, where $\i{tr}_1,...,\i{tr}_n$ are one-recovery fragments, and $\i{tr'}$ is a trailing fragment without any crashes.
+To better illustrate behavioral correctness, we define two multi-recovery fragments with the same trace, one in \Prog\ and one in~\Spec, to be $\AgdaId{\i{Conformant}}$ if for every pair of corresponding states, in the sense that they are both the states after the same action at a specific position in that trace is performed, are observationally equivalent.\\
+Since a multi-recovery fragment consists of multiple one-recovery fragments, we define $\AgdaId{\i{Conformant{\text-}1R}}$ to describe conformance particularly between two one-recovery fragments, and $\AgdaId{\i{Conformant{\text-}all}}$ to describe conformance between two fragments where every action in the trace is successful(i.e. without crashes).\\
+\begin{definition}[\i{Conformance{\text-}1R}]
+    For two fragments $\i{frP} = s \ttsPI{\i{tr, a}} s'$ and $\i{frS} = t \ttsS{\i{tr, a}} t'$, $\i{Conformance{\text-}1R}(\i{frP}, \i{frS})$ holds if both of the following hold:
+    \begin{itemize}
+        \item $\i{frP'} = s \ttsPI{\i{tr}} s''$ and $\i{frS'} = t \ttsS{\i{tr}} t''$ satisfy \i{Conformance{\text-}1R(frP', frS')}
+    \end{itemize}
+\end{definition}
+
+\begin{definition}[\i{Conformance{\text-}all}]
+    For two fragments $\i{frP} = s \ttsPI{\i{tr, a}} s'$ and $\i{frS} = t \ttsS{\i{tr, a}} t'$ where $\i{tr, a}$ are all successful actions, \i{Conformance{\text-}all} holds for \i{frP} and \i{frS} if both of the following hold:
+    \begin{itemize}
+        \item $\i{frP'} = s \ttsPI{\i{tr}} s''$ and $\i{frS'} = t \ttsS{\i{tr}} t''$ satisfy Conformance{\text-}all(frP', frS')
+
+    \end{itemize}
+\end{definition}
+
+\begin{theorem}[behavioral correctness, $\AgdaId{\i{BC}}$]   
+For all fragments $\i{frP_1} = s \ttsPI{\i{tr}} s'$ and $\i{frP_2} = s' \ttsPI{\i{tr'}} s''$ where $\i{tr}$ is a multi-recovery trace and $\i{tr'}$ is a trace without crashes, there exist two corresponding fragments $\i{frS_1} = t \ttsS{\i{tr}} t'$ and $\i{frS_2} = t' \ttsS{\i{tr'}} t''$ such that $\i{frP_1}$ and $\i{frS_1}$ satisfy $\i{Conformant}$, while $\i{frP_2}$ and $\i{frS_2}$ satisfy $\i{Conformant{\text-}all}$. 
+\end{theorem}
