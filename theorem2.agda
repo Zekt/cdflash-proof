@@ -451,12 +451,32 @@ module Prog
   ... | fr₀ • rr with lift-rᶜ {cinv = initᴿ-CI _ init-rs} {{all}} fr₀
   ... | cinv₀ , fr₀ᴾ = _ , CIRI rr cinv₀ , fr₀ᴾ • r rr , init init-rs
   lift-mr ._ ._ (one frs₀ fr frs) init-rs with lift-mr _ _ frs₀ init-rs
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s =
-    let (rinv₁ , fr₁ᴾ) = lift-n×s {rinv = rinv₀} {{all₁}} fr₁
-    in  {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
-  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s = {!!}
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ {tr₃ = tr₃} {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s with splitRTC ([] • (wᶜ[ _ ↦ _ ])) {rest = (tr₃ • r)} fr₃
+  ...   | rs'' , ∅ • s₃▸s₃' , s₃'▸r • r▸rs' , eq with lift-n×s {rinv = rinv₀} {{all₁}} fr₁
+  ...   | rinv₁ , frP₁ with lift-n×s {rinv = rinv₁} {{ ([] ∷ f) ++All mapAll r→rs all₂ }} fr₂
+  ...   | rinv₂ , frP₂ with RICI wᶜ s₃▸s₃' rinv₂
+  ...   | cinv₂' with lift-rᶜ {cinv = cinv₂'} {{all₃}} s₃'▸r
+  ...   | cinv₃ , frP₃ with CIRI r▸rs' cinv₃
+  ...   | rinv₄  = cinv₀ , rinv₄ ,  fr₀ᴾ ++RTC (frP₁ ++RTC frP₂ ++RTC ((∅ • wᶜ s₃▸s₃') ++RTC (frP₃ • r r▸rs'))), init-s
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ {tr₃ = tr₃} {all₁ = all₁} {all₂} {all₃} fr₁ fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s with splitRTC ([] • fᶜ) {rest = (tr₃ • r)} fr₃
+  ...   | rs'' , ∅ • s₃▸s₃' , s₃'▸r • r▸rs' , eq with lift-n×s {rinv = rinv₀} {{all₁}} fr₁
+  ...   | rinv₁ , frP₁ with lift-n×s {rinv = rinv₁} {{ ([] ∷ f) ++All mapAll r→rs all₂ }} fr₂
+  ...   | rinv₂ , frP₂ with RICI fᶜ s₃▸s₃' rinv₂
+  ...   | cinv₂' with lift-rᶜ {cinv = cinv₂'} {{all₃}} s₃'▸r
+  ...   | cinv₃ , frP₃ with CIRI r▸rs' cinv₃
+  ...   | rinv₄  = cinv₀ , rinv₄ ,  fr₀ᴾ ++RTC (frP₁ ++RTC frP₂ ++RTC ((∅ • fᶜ s₃▸s₃') ++RTC (frP₃ • r r▸rs'))), init-s
+  lift-mr ._ ._ (one frs₀ ._ (wᶜ-nof {tr₃ = tr₃} {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s with splitRTC ([] • wᶜ[ _ ↦ _ ]) {rest = (tr₃ • r)} fr₃
+  ...   | rs'' , ∅ • s₃▸s₃' , s₃'▸r • r▸rs' , eq with lift-n×s {rinv = rinv₀} {{ mapAll r→rs all₂ }} fr₂
+  ...   | rinv₂ , frP₂ with RICI wᶜ s₃▸s₃' rinv₂
+  ...   | cinv₂' with lift-rᶜ {cinv = cinv₂'} {{all₃}} s₃'▸r
+  ...   | cinv₃ , frP₃ with CIRI r▸rs' cinv₃
+  ...   | rinv₄  = cinv₀ , rinv₄ ,  fr₀ᴾ ++RTC (frP₂ ++RTC ((∅ • wᶜ s₃▸s₃') ++RTC (frP₃ • r r▸rs'))), init-s
+  lift-mr ._ ._ (one frs₀ ._ (fᶜ-nof {tr₃ = tr₃} {all₂ = all₂} {all₃} fr₂ fr₃)) init-rs | cinv₀ , rinv₀ , fr₀ᴾ , init-s with splitRTC ([] • fᶜ) {rest = (tr₃ • r)} fr₃
+  ...   | rs'' , ∅ • s₃▸s₃' , s₃'▸r • r▸rs' , eq with lift-n×s {rinv = rinv₀} {{ mapAll r→rs all₂ }} fr₂
+  ...   | rinv₂ , frP₂ with RICI fᶜ s₃▸s₃' rinv₂
+  ...   | cinv₂' with lift-rᶜ {cinv = cinv₂'} {{all₃}} s₃'▸r
+  ...   | cinv₃ , frP₃ with CIRI r▸rs' cinv₃
+  ...   | rinv₄  = cinv₀ , rinv₄ ,  fr₀ᴾ ++RTC (frP₂ ++RTC ((∅ • fᶜ s₃▸s₃') ++RTC (frP₃ • r r▸rs'))), init-s
 
   ObsEquiv : Stateᴾ → State → Set
   ObsEquiv (rs , _) t = read rs ≐ State.volatile t
