@@ -64,21 +64,38 @@ Then we can state that the simulation relation is preserved between \Prog\ and~\
 Note that, our goal is to establish behavioral correctness and snapshot consistency of multi-recovery fragments defined in the main text, whose traces are of the form $$(r^c)^m, r, \i{tr}_1,...,\i{tr}_n,\i{tr'}$$, where $\i{tr}_1,...,\i{tr}_n$ are one-recovery fragments, and $\i{tr'}$ is a trailing fragment without any crashes.
 To better illustrate behavioral correctness, we define two multi-recovery fragments with the same trace, one in \Prog\ and one in~\Spec, to be $\AgdaId{\i{Conformant}}$ if for every pair of corresponding states, in the sense that they are both the states after the same action at a specific position in that trace is performed, are observationally equivalent.\\
 Since a multi-recovery fragment consists of multiple one-recovery fragments, we define $\AgdaId{\i{Conformant{\text-}1R}}$ to describe conformance particularly between two one-recovery fragments, and $\AgdaId{\i{Conformant{\text-}all}}$ to describe conformance between two fragments where every action in the trace is successful(i.e. without crashes).\\
-\begin{definition}[\i{Conformance{\text-}1R}]
-    For two fragments $\i{frP} = s \ttsPI{\i{tr, a}} s'$ and $\i{frS} = t \ttsS{\i{tr, a}} t'$, $\i{Conformance{\text-}1R}(\i{frP}, \i{frS})$ holds if both of the following hold:
-    \begin{itemize}
-        \item $\i{frP'} = s \ttsPI{\i{tr}} s''$ and $\i{frS'} = t \ttsS{\i{tr}} t''$ satisfy \i{Conformance{\text-}1R(frP', frS')}
-    \end{itemize}
-\end{definition}
+
 
 \begin{definition}[\i{Conformance{\text-}all}]
-    For two fragments $\i{frP} = s \ttsPI{\i{tr, a}} s'$ and $\i{frS} = t \ttsS{\i{tr, a}} t'$ where $\i{tr, a}$ are all successful actions, \i{Conformance{\text-}all} holds for \i{frP} and \i{frS} if both of the following hold:
+    For two fragments $\i{frP} = s \ttsPI{\i{tr}} s'$ and $\i{frS} = t \ttsS{\i{tr}} t'$ where \i{tr} and a are all successful actions, $\i{Conformance{\text-}all(\i{frP}, \i{frS})}$ holds if
     \begin{itemize}
-        \item $\i{frP'} = s \ttsPI{\i{tr}} s''$ and $\i{frS'} = t \ttsS{\i{tr}} t''$ satisfy Conformance{\text-}all(frP', frS')
-
+        \item $\i{tr}$ is an empty trace,
+    \end{itemize}
+    or when $\i{tr}$ is nonempty, thus can be written as $\i{tr'}, a$ where $a$ is the last action, both of the following holds,
+    \begin{itemize}
+        \item $\i{frP'} = s \ttsPI{\i{tr'}} s''$ and $\i{frS'} = t \ttsS{\i{tr'}} t''$ satisfy $\i{Conformance{\text-}all}(\i{frP'}, \i{frS'})$,
+        \item $s'$ and $t'$ are observationally equivalent.
     \end{itemize}
 \end{definition}
+
+\begin{definition}[\i{Conformance{\text-}1R}]
+    For two fragments $\i{frP} = s \ttsPI{\i{tr}} s'$ and $\i{frS} = t \ttsS{\i{tr}} t'$ where \i{tr} is an one-recovery trace, which can be splited into two traces \i{tr_1} and \i{tr_2}, \i{tr_1} is the trace before the first crash($\actwc$ or $\actfc$), the fragments can alternatively be written as $\i{frP} = s \ttsPI{\i{tr_1}} s'' \ttsPI{\i{tr_2}}  s'$ and $\i{frS} = t \ttsS{\i{tr_1}} t'' \ttsS{\i{tr_2}}  t'$, $\i{Conformance{\text-}1R(\i{frP}, \i{frS})}$ holds if
+    \begin{itemize}
+        \item $\i{Conformance{\text-}1R( s \ttsPI{\i{tr_1}} s'', t \ttsS{\i{tr_1}} t'')}$
+        \item $s'$ and $t'$ are observationally equivalent.\\
+    \end{itemize}
+
+\end{definition}
+
+With $\i{Conformance}$ defined, behavioral correctness can then be stated as follows.
 
 \begin{theorem}[behavioral correctness, $\AgdaId{\i{BC}}$]   
 For all fragments $\i{frP_1} = s \ttsPI{\i{tr}} s'$ and $\i{frP_2} = s' \ttsPI{\i{tr'}} s''$ where $\i{tr}$ is a multi-recovery trace and $\i{tr'}$ is a trace without crashes, there exist two corresponding fragments $\i{frS_1} = t \ttsS{\i{tr}} t'$ and $\i{frS_2} = t' \ttsS{\i{tr'}} t''$ such that $\i{frP_1}$ and $\i{frS_1}$ satisfy $\i{Conformant}$, while $\i{frP_2}$ and $\i{frS_2}$ satisfy $\i{Conformant{\text-}all}$. 
 \end{theorem}
+
+Finally, we can prove the snapshot consistency of~\Prog\ with behavioral correctness .
+
+\begin{theorem}[snapshot consistency of \ProgInv, $\AgdaId{\i{Prog.SC}}$]
+    For every fragment in \ProgInv\ of the form $s_0 \ttsPI{tr} s_1 \ttsPI{tr'} s_2$, where $\id{Init^P}(s_0)$ holds, $\id{tr}$ is multi-recovery, and $\id{tr}'$~is one-recovery, the sub-fragment $s_1 \ttsPI{\id{tr'}} s_2$ is snapshot-consistent under the equivalence relation $\id{ER}(s, s') \defeq \id{read}(s) = \id{read}(s')$.
+    
+\end{theorem} 
