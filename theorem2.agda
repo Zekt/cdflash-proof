@@ -524,42 +524,42 @@ module Prog
         (t'  , t''▸t' , SR-s'-t'  ) = simSR SR-s''-t'' s''▸s'
     in  _ , (t*▸t'' • t''▸t') , SR-s'-t'
 
-  Conformance-all : {tr : Trace} {s s' : Stateᴾ} → s ⟦ tr ⟧ᴾ*▸ s' → {t t' : State} → t ⟦ tr ⟧*▸ t' → Set
-  Conformance-all {s' = s'} ∅         {t' = t'} ∅         = ⊤
-  Conformance-all {s' = s'} (frP • _) {t' = t'} (frS • _) = Conformance-all frP frS × ObsEquiv s' t'
+  Conformant-all : {tr : Trace} {s s' : Stateᴾ} → s ⟦ tr ⟧ᴾ*▸ s' → {t t' : State} → t ⟦ tr ⟧*▸ t' → Set
+  Conformant-all {s' = s'} ∅         {t' = t'} ∅         = ⊤
+  Conformant-all {s' = s'} (frP • _) {t' = t'} (frS • _) = Conformant-all frP frS × ObsEquiv s' t'
 
-  Conformance-1R : {tr : Trace} (1r : OneRecovery tr)
+  Conformant-1R : {tr : Trace} (1r : OneRecovery tr)
                  → {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → 1RFrags 1r frP
                  → {t t' : State } (frS : t ⟦ tr ⟧*▸  t') → 1RFrags 1r frS → Set
-  Conformance-1R ._ {s' = s'} ._ (wᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (wᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (fᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (fᶜ frS₁ frS₂ frS₃) = Conformance-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (wᶜ-nof  frP₂ frP₃) {t' = t'} ._ (wᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
-  Conformance-1R ._ {s' = s'} ._ (fᶜ-nof  frP₂ frP₃) {t' = t'} ._ (fᶜ-nof  frS₂ frS₃) = Conformance-all frP₂ frS₂ × ObsEquiv s' t'
+  Conformant-1R ._ {s' = s'} ._ (wᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (wᶜ frS₁ frS₂ frS₃) = Conformant-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
+  Conformant-1R ._ {s' = s'} ._ (fᶜ frP₁ frP₂ frP₃) {t' = t'} ._ (fᶜ frS₁ frS₂ frS₃) = Conformant-all (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) × ObsEquiv s' t'
+  Conformant-1R ._ {s' = s'} ._ (wᶜ-nof  frP₂ frP₃) {t' = t'} ._ (wᶜ-nof  frS₂ frS₃) = Conformant-all frP₂ frS₂ × ObsEquiv s' t'
+  Conformant-1R ._ {s' = s'} ._ (fᶜ-nof  frP₂ frP₃) {t' = t'} ._ (fᶜ-nof  frS₂ frS₃) = Conformant-all frP₂ frS₂ × ObsEquiv s' t'
 
-  Conformance-all-intermediate : {s₁ s₂ s₃ : Stateᴾ} {t₁ t₂ t₃ : State} {tr tr' : Trace}
+  Conformant-all-intermediate : {s₁ s₂ s₃ : Stateᴾ} {t₁ t₂ t₃ : State} {tr tr' : Trace}
                                  (frP : s₁ ⟦ tr ⟧ᴾ*▸ s₂) (frS : t₁ ⟦ tr ⟧*▸ t₂) (frP' : s₂ ⟦ tr' ⟧ᴾ*▸ s₃) (frS' : t₂ ⟦ tr' ⟧*▸ t₃)
-                               → Conformance-all (frP ++RTC frP') (frS ++RTC frS') → ObsEquiv s₁ t₁ → ObsEquiv s₂ t₂
-  Conformance-all-intermediate ∅ ∅ _ _ conf oe = oe
-  Conformance-all-intermediate (frP • sP) (frS • sS) ∅ ∅ conf oe = proj₂ conf
-  Conformance-all-intermediate (frP • sP) (frS • sS) (frP' • sP') (frS' • sS') conf oe = Conformance-all-intermediate (frP • sP) (frS • sS) frP' frS' (proj₁ conf) oe
+                               → Conformant-all (frP ++RTC frP') (frS ++RTC frS') → ObsEquiv s₁ t₁ → ObsEquiv s₂ t₂
+  Conformant-all-intermediate ∅ ∅ _ _ conf oe = oe
+  Conformant-all-intermediate (frP • sP) (frS • sS) ∅ ∅ conf oe = proj₂ conf
+  Conformant-all-intermediate (frP • sP) (frS • sS) (frP' • sP') (frS' • sS') conf oe = Conformant-all-intermediate (frP • sP) (frS • sS) frP' frS' (proj₁ conf) oe
 
   conf-all++ : {s₁ s₂ s₃ : Stateᴾ} {t₁ t₂ t₃ : State} {tr tr' : Trace}
                (frP : s₁ ⟦ tr ⟧ᴾ*▸ s₂) (frS : t₁ ⟦ tr ⟧*▸ t₂) (frP' : s₂ ⟦ tr' ⟧ᴾ*▸ s₃) (frS' : t₂ ⟦ tr' ⟧*▸ t₃)
-             → Conformance-all frP frS → Conformance-all frP' frS'
-             → Conformance-all (frP ++RTC frP') (frS ++RTC frS')
+             → Conformant-all frP frS → Conformant-all frP' frS'
+             → Conformant-all (frP ++RTC frP') (frS ++RTC frS')
   conf-all++ frP frS ∅ ∅ conf conf' = conf
   conf-all++ frP frS (frP' • p) (frS' • s) conf (conf' , oe) = conf-all++ frP frS frP' frS' conf conf' , oe
 
-  Conformance : {tr : Trace} (mr : MultiRecovery tr)
+  Conformant : {tr : Trace} (mr : MultiRecovery tr)
                 {s s' : Stateᴾ} (frP : s ⟦ tr ⟧ᴾ*▸ s') → MRFrags mr frP
               → {t t' : State } (frS : t ⟦ tr ⟧*▸  t') → MRFrags mr frS → Set
-  Conformance (init _) {s' = s'} _ _ {t' = t'} _ _ = ObsEquiv s' t'
-  Conformance (one mr 1r) .(_ ++RTC frP₂) (one {s₂ = s''} frPs frP₂ frPs₂) .(_ ++RTC frS₂) (one {s₂ = t''} frSs frS₂ frSs₂) =
-    Conformance mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformance-1R 1r frP₂ frPs₂ frS₂ frSs₂
+  Conformant (init _) {s' = s'} _ _ {t' = t'} _ _ = ObsEquiv s' t'
+  Conformant (one mr 1r) .(_ ++RTC frP₂) (one {s₂ = s''} frPs frP₂ frPs₂) .(_ ++RTC frS₂) (one {s₂ = t''} frSs frS₂ frSs₂) =
+    Conformant mr _ frPs _ frSs × ObsEquiv s'' t'' × Conformant-1R 1r frP₂ frPs₂ frS₂ frSs₂
 
   BC-all : {tr : Trace} → All Regular×Snapshot tr → {s s' : Stateᴾ} {t : State} →
            SR s t → ObsEquiv s t → (frP : s ⟦ tr ⟧ᴾ*▸ s') →
-           Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] SR s' t' × ObsEquiv s' t' × Conformance-all frP frS
+           Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] SR s' t' × ObsEquiv s' t' × Conformant-all frP frS
   BC-all [] sr oe-s-t ∅ = _ , ∅ , sr , oe-s-t , tt
   BC-all (all ∷ _) sr oe-s-t (frP • _) with BC-all all sr oe-s-t frP
   BC-all (all ∷ _) sr oe-s-t (frP • s''▸s') | t'' , frS'' , sr'' , oe'' , conf'' with simSR sr'' s''▸s'
@@ -574,7 +574,7 @@ module Prog
 
   BC-1R : {tr : Trace} → (1r : OneRecovery tr) → {s s' : Stateᴾ} {t : State} →
           SR s t → ObsEquiv s t → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : 1RFrags 1r frP) →
-          Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ 1RFrags 1r frS ] SR s' t' × ObsEquiv s' t' × Conformance-1R 1r frP frPs frS frSs
+          Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ 1RFrags 1r frS ] SR s' t' × ObsEquiv s' t' × Conformant-1R 1r frP frPs frS frSs
   BC-1R 1r sr s=t frP (wᶜ {all₁ = all₁} {all₂ = all₂} fr₁ fr₂ fr₃@(fr₃' • r {rinv' = rinv'} _))
      with BC-all all₁ sr s=t fr₁
   ... | t₁ , frS₁ , sr-s₁-t₁ , s₁=t₁ , conf₁
@@ -605,7 +605,7 @@ module Prog
           in  t' , frS₂ ++RTC frS' , fᶜ-nof frS₂ frS' , ar ar-s'-t' , oe' , conf₂ , oe'
 
   BC-ind : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
-         → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
+         → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] SR s' t' × ObsEquiv s' t' × Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformant mr frP frPs frS frSs
   BC-ind (init all) {s = s₀} (init rs₀) (frP • rP@(r {rinv' = rinv'} rs)) frPs with runSimSR (cr (initᴿ-CR (proj₁ s₀) rs₀ (proj₁ t-init) (proj₂ t-init))) frP
   ... | t'' , frS , sr' with simSR sr' rP
   ... | t' , rS , (ar ar-rs'-t') =
@@ -616,7 +616,7 @@ module Prog
   ... | t' , frS₂ , frSs₂ , sr' , oe' , conf₂ = t , init-t , t' , sr' , oe' , frS₁ ++RTC frS₂ , one frSs₁ frS₂ frSs₂ , conf₁ , oe'' , conf₂
 
   BC-mr : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') → (frPs : MRFrags mr frP)
-        → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformance mr frP frPs frS frSs
+        → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Conformant mr frP frPs frS frSs
   BC-mr mr init-s frP frPs =
     let (t , init-t , t' , _ , _ , frS , frSs , conf) = BC-ind mr init-s frP frPs
     in  (t , init-t , t' , frS ,  frSs , conf)
@@ -624,7 +624,7 @@ module Prog
   BC : {tr : Trace} (mr : MultiRecovery tr) {s s' : Stateᴾ} → Initᴾ s → (frP : s ⟦ tr ⟧ᴾ*▸ s') (frPs : MRFrags mr frP)
      → {tr' : Trace} {s'' : Stateᴾ} → All Regular×Snapshot tr' → (frP' : s' ⟦ tr' ⟧ᴾ*▸ s'')
      → Σ[ t ∈ State ] Init t × Σ[ t' ∈ State ] Σ[ frS ∈ t ⟦ tr ⟧*▸ t' ] Σ[ frSs ∈ MRFrags mr frS ] Σ[ t'' ∈ State ] Σ[ frS' ∈ t' ⟦ tr' ⟧*▸ t'' ]
-       Conformance mr frP frPs frS frSs × Conformance-all frP' frS'
+       Conformant mr frP frPs frS frSs × Conformant-all frP' frS'
   BC mr init-s frP frPs all frP' =
     let (t , init-t , t' , sr' , oe' , frS , frSs , conf) = BC-ind mr init-s frP frPs
         (t'' , frS' , _ , _ , conf') = BC-all all sr' oe' frP'
@@ -636,17 +636,17 @@ module Prog
   SC mr 1r init-s₀ frP₀ frPs₀ frP frPs with BC-mr (one mr 1r) init-s₀ (frP₀ ++RTC frP) (one frPs₀ frP frPs)
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (wᶜ frP₁ frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (wᶜ {all₁ = all₁} {all₂ = all₂} {all₃ = all₃} frS₁ frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
-       = Conformance-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> SpecSC-wᶜ ⦃ all₂ ⦄ ⦃ all₃ ⦄ frS₂ frS₃ <≐> sym-≐ oe-s'-t'
+       = Conformant-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> SpecSC-wᶜ ⦃ all₂ ⦄ ⦃ all₃ ⦄ frS₂ frS₃ <≐> sym-≐ oe-s'-t'
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (fᶜ frP₁ frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (fᶜ {all₁ = all₁} {all₂ = all₂} {all₃ = all₃} frS₁ frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
        with SpecSC-fᶜ {{all₂}} {{all₃}} frS₂ frS₃
-  ...  | inj₁ req = inj₁ $ Conformance-all-intermediate (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
-  ...  | inj₂ req = inj₂ $ Conformance-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
+  ...  | inj₁ req = inj₁ $ Conformant-all-intermediate (frP₁ ++RTC frP₂) (frS₁ ++RTC frS₂) ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
+  ...  | inj₂ req = inj₂ $ Conformant-all-intermediate frP₁ frS₁ frP₂ frS₂ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (wᶜ-nof frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one {fr₁ = frS₀} frSs ._ (wᶜ-nof {all₂ = all₂} {all₃ = all₃} frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
        = oe-s-t <≐> SpecSC-wᶜ-nof ⦃ all₂ ⦄ ⦃ all₃ ⦄ (proj₂ (lastr mr frS₀ frSs)) frS₂ frS₃ <≐> sym-≐ oe-s'-t'
   SC mr ._ init-s₀ frP₀ frPs₀ ._ (fᶜ-nof frP₂ frP₃) |
      t₀ , init-t₀ , t' , ._ , one frSs ._ (fᶜ-nof {all₂ = all₂} {all₃ = all₃} frS₂ frS₃) , (_ , oe-s-t , conf , oe-s'-t')
        with SpecSC-fᶜ-nof {{all₂}} {{all₃}} (proj₂ (lastr mr _ frSs)) frS₂ frS₃
-  ...  | inj₁ req = inj₁ $ Conformance-all-intermediate frP₂ frS₂ ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
+  ...  | inj₁ req = inj₁ $ Conformant-all-intermediate frP₂ frS₂ ∅ ∅ conf oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
   ...  | inj₂ req = inj₂ $ oe-s-t <≐> req <≐> sym-≐ oe-s'-t'
