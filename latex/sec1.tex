@@ -15,4 +15,4 @@ The Agda proof does not depend on the detail of~\Prog\ and the invariants on pro
 We will then define \Spec, formulate a generic definition of snapshot consistency and prove the snapshot consistency of \Spec\ in \cref{sec:Spec}.
 Next we will formally define the simulation relation between \Prog~and~\Spec, but instead of considering the entire~\Prog, it suffices to focus on a sub-system~\ProgInv\ of~\Prog\ which consists of only the states satisfying the invariants and the transitions ``respecting'' the invariants. \ProgInv will be defined in \cref{sec:ProgInv}.
 The simulation relation between \ProgInv~and~\Spec, to be defined in \cref{sec:sim}, will be easier to handle (compared to the one between \Prog~and~\Spec), and the snapshot consistency of \ProgInv\ is the same as that of \Prog\ since the property is only about multi-recovery fragments, which can be shown (in \cref{sec:ProgInv}) to be included in~\ProgInv.
-The proof of the behavioral correctness and snapshot consistency of~\ProgInv\ will all be presented and proved in \cref{sec:sim}. \todo{revise}
+Finally we will present the behavioral correctness and snapshot consistency of~\ProgInv\ in \cref{bcsc}.

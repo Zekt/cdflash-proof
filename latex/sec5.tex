@@ -71,7 +71,7 @@ Also proved with an SMT solver, for every pair of \i{s \in \ProgInvState} and \i
     $$
 \end{assumption}
 
-\section{Behavioral correctness\\ and snapshot consistency of \ProgInv}
+\section{Behavioral correctness\\ and snapshot consistency of \ProgInv}\label{bcsc}
 
 To state the behavioral correctness more easily, we give some auxiliary definitions. We define two multi-recovery fragments with the same trace, one in \Prog\ and one in~\Spec, to be $\AgdaId{\i{Conformant}}$ if every pair of corresponding normal states are observationally equivalent.
 Since a multi-recovery fragment consists of multiple one-recovery fragments, we define $\AgdaId{\i{Conformant{\text-}1R}}$ to describe conformance particularly between two one-recovery fragments, and $\AgdaId{\i{Conformant{\text-}all}}$ to describe conformance between two fragments where every action in the trace is successful (i.e. without crashes).\\
