@@ -8,11 +8,11 @@
 %The overall strategy for carrying out the proof is to use an SMT solver wherever possible, and verify the rest with a proof assistant, in this case Agda.
 %More specifically, the solver establishes the preservation of invariants in~\Prog\ and the simulation of~\Prog\ by~\Spec, and then with Agda we prove that \Spec\ is crash-deterministic, and that crash-determinacy of~\Spec\ does lead to crash-determinacy of~\Prog\ due to the simulation.
 
-In this appendix we present the content of \S4 in detail; the content is formalized with the Agda theorem prover, but is presented here in the usual mathematical style.
-The Agda proof does not depend on the detail of~\Prog\ and the invariants on program states, which will be formulated as assumptions in \cref{sec:Prog}.
-We will then define \Spec\ and prove its snapshot consistency in \cref{sec:Spec}.
-Next we will formally define the simulation relation between \Prog~and~\Spec, but instead of considering the entire~\Prog, it suffices to focus on a sub-system~\ProgInv\ of~\Prog\ which consists of only the states satisfying the invariants and the transitions ``respecting'' the invariants; in \cref{sec:ProgInv} we will define~\ProgInv\ and prove some of its properties.
-The simulation relation between \ProgInv~and~\Spec, to be defined in \cref{sec:sim}, will be easier to handle (compared to the one between \Prog~and~\Spec), and the snapshot consistency of \ProgInv\ is the same as that of \Prog\ since the property is only about multi-recovery fragments, which can be shown (in \cref{sec:ProgInv}) to be included in~\ProgInv.
-The proof of the behavioral correctness and snapshot consistency of~\ProgInv\ will then be presented in \cref{sec:proof}.
-
+In this appendix we present the content of \S4 in detail. The definitions, theorems and lemmas, and their proofs are all formalized with the Agda proof assistant, while in this appendix we omit the proofs, the details of which are all written and checked in Agda, and merely present the important definitions, theorems, and lemmas in the usual mathematical style.
 Throughout this appendix we will annotate definitions, theorems, etc with the corresponding Agda identifiers enclosed in \AgdaId{\cdot}, so that readers who are proficient in Agda can look up the identifiers in the source code easily.
+
+The Agda proof does not depend on the detail of~\Prog\ and the invariants on program states, which will be formulated as assumptions in \cref{sec:Prog}.
+We will then define \Spec, formulate a generic definition of snapshot consistency and prove the snapshot consistency of \Spec\ in \cref{sec:Spec}.
+Next we will formally define the simulation relation between \Prog~and~\Spec, but instead of considering the entire~\Prog, it suffices to focus on a sub-system~\ProgInv\ of~\Prog\ which consists of only the states satisfying the invariants and the transitions ``respecting'' the invariants. \ProgInv will be defined in \cref{sec:ProgInv}.
+The simulation relation between \ProgInv~and~\Spec, to be defined in \cref{sec:sim}, will be easier to handle (compared to the one between \Prog~and~\Spec), and the snapshot consistency of \ProgInv\ is the same as that of \Prog\ since the property is only about multi-recovery fragments, which can be shown (in \cref{sec:ProgInv}) to be included in~\ProgInv.
+The proof of the behavioral correctness and snapshot consistency of~\ProgInv\ will all be presented and proved in \cref{sec:sim}. \todo{revise}

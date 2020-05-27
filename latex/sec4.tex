@@ -7,11 +7,11 @@
 %In other words, the states in these fragments always satisfy either \i{RI} or \i{CI}.
 %Thus it suffices to define a simulation of \ProgInv\ by \Spec\ to prove the behavioral correctness on~\ProgInv, from which the snapshot consistency of~\Prog\ could be derived.
 
-The states of \ProgInv\ is trivial:
+The states of \ProgInv\ is defined as follows:
 $$\ProgInvState \defeq{} \{\, s \in \ProgState \mid \i{RI(s) \lor CI(s)} \,\}$$
 The transition relation of~\ProgInv,
 $$\ttPI{} \subseteq \i{State^P} \times \i{Action} \times \i{State^P} \qquad \AgdaId{\_\sem{\_}^P{\blacktriangleright}\_} $$
-which can be easily shown to be a subset of \i{\ttP{}}, is defined by
+which is, similarly, a subset of \i{\ttP{}}, is defined by
 \begin{alignat*}{3}
 	\ttPI{\awa{w}{\actw_{a, d}}} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}{\actw_{a, d}}} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
 	\ttPI{\awa{w}\actf} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actf} s' \conj \i{RI(s)} \conj \i{RI(s')} \,\} \\
@@ -25,9 +25,9 @@ which can be easily shown to be a subset of \i{\ttP{}}, is defined by
 	\ttPI{\awa{w}\actrc} \defeq{}& \{\, (s, s') \mid s \ttP{\awa{w}\actrc} s' \conj \i{CI(s)} \conj \i{CI(s')} \,\} 
 \end{alignat*}
 
-It is easy to prove that every multi-recovery fragment which starts from a new disk state in~\Prog\ is also one in~\ProgInv, where a new disk state is characterized by the predicate $\AgdaId{\ensuremath{\id{Init^P(s)}}} \defeq \id{Init^R(s)} \land \id{CI(s)}$, so when considering such fragments in~\Prog\ we can work with~\ProgInv\ instead.
+From \cref{peropb}, we can prove that every multi-recovery fragment which starts from a new disk state in~\Prog\ is also one in~\ProgInv, where a new disk state in \ProgInv\ is characterized by the predicate $\AgdaId{\ensuremath{\id{Init^P(s)}}} \defeq \id{Init^R(s)} \land \id{CI(s)}$, so when considering only such fragments in~\Prog, which are ranged over by the statements of behavioral correctness and snapshot consistency, we can work with~\ProgInv\ instead.
 \begin{lemma}[\AgdaId{\id{lift\text-mr}}]
-For every multi-recovery fragment $s \ttsP{\id{tr}} s'$ in \Prog\ where $\id{Init^R(s)}$ holds, there exists a fragment $s \ttsPI{\id{tr}} s'$ such that $\id{Init^P(s)}$, $\id{CI(s)}$ and $\id{RI(s')}$ hold.
+For every multi-recovery fragment $s \ttsP{\id{tr}} s'$ where $\id{Init^R(s)}$ holds, there exists a fragment $s \ttsPI{\id{tr}} s'$ such that $\id{Init^P(s)}$, $\id{CI(s)}$, and $\id{RI(s')}$ hold.
 \end{lemma}
 
 %Snapshot consistency of \ProgInv, which is exactly the same with snapshot consistency of \Prog\ except the states and transition relation it applies to, can be stated as follows.

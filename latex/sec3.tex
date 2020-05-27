@@ -11,14 +11,14 @@ Similarly to $\i{read}$ in \Prog, the functions
 \i{volatile} &: \SpecState \to (\i{Addr} \to \i{Data}) & \AgdaId{\id{State}.\id{volatile}} \\
 \i{stable} &: \SpecState \to (\i{Addr} \to \i{Data}) & \AgdaId{\id{State}.\id{stable}}
 \end{align*}
-extract the respective mappings from a \Spec-state.
+extract the respective mappings from a \SpecState.
 The new states of~\Spec\ are characterized by the predicate $\AgdaId{\id{Init}(s)} \defeq \forall a.\ \id{stable}(s)(a) = \id{defaultData}$ where $\AgdaId{\id{defaultData}} \in \id{Data}$ is some default value for memory cells.
 The transition relation
 $$ {\ttS{}} \subseteq \SpecState \times \i{Action} \times \SpecState \qquad \AgdaId{\_\sem{\_}{\blacktriangleright}\_} $$
 has been defined in figure~4 in the main text.
 
-Next we state snapshot consistency generically for disk models.
-To do so we will need to talk about sequences of transitions and particular forms of traces (i.e., sequences of actions, which are of type $\AgdaId{\id{Trace}}$), and some general definitions will be helpful.
+Next we define snapshot consistency generically for disk models.
+To do so we will need to define sequences of transitions and particular forms of traces (i.e., sequences of actions, which form a set $\AgdaId{\id{Trace}}$).
 Then we are able to prove the snapshot consistency on \Spec.
 
 \begin{definition}[fragments, \AgdaId{\id{RTC}}]\label{def:frag}

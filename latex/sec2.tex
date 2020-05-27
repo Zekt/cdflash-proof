@@ -23,26 +23,26 @@ Most of the time the pair of address and data in a $\actw$ or $\actwc$ action is
 We will refer to a transition system whose labels are drawn from \id{Action} as a \emph{disk model} --- in particular, \Prog\ is a disk model.
 The ternary (single-step) transition relation of~\Prog\ is
 $$ {\ttP{}} \subseteq \ProgState \times \i{Action} \times \ProgState \qquad \AgdaId{\_\sem{\_}^{\mathrm R}{\blacktriangleright}\_} $$
-Its exact definition is, again, irrelevant in this appendix and omitted.
+Its exact definition is, again, irrelevant for our purposes and omitted.
 We write
 $$s \ttP{a} s'$$
 when state~$s$ transits to~$s'$ through action~$a$ in~\Prog.
 
-Recall that there are two types of invariants on the states, the representation invariant \AgdaId{\i{RI}} and the crash invariant \AgdaId{\i{CI}}, which are preserved or transformed by the transitions; these properties are proved by an SMT solver, and are made assumptions in this proof.
+Recall that there are two types of invariants on the states, the representation invariant \AgdaId{\i{RI}} and the crash representation invariant \AgdaId{\i{CI}}, which are preserved or transformed by the transitions; these properties are proved by an SMT solver, and are made assumptions in this proof.
 
-\begin{assumption}[per-operation correctness]
+\begin{assumption}[type B per-operation correctness]\label{peropb}
 For all $s$, $s' \in \ProgState$, the following are assumed:
 \begin{align*}
-s \ttP{\awa{\actw}{\actw }} s' \conj \i{RI}(s) &\implies \i{RI}(s') & \AgdaId{\id{RIRI}} \\
+s \ttP{\awa{\actw}{\actw }} s' \conj \i{RI}(s) &\implies \i{RI}(s') & \tag*{\AgdaId{\id{RIRI}}} \\
 s \ttP{\awa{\actw}{\actf }} s' \conj \i{RI}(s) &\implies \i{RI}(s')\\
 s \ttP{\awa{\actw}{\actcp}} s' \conj \i{RI}(s) &\implies \i{RI}(s')\\
 s \ttP{\awa{\actw}{\actes}} s' \conj \i{RI}(s) &\implies \i{RI}(s')\\
-s \ttP{\awa{\actw}{\actwc}} s' \conj \i{RI}(s) &\implies \i{CI}(s') & \AgdaId{\id{RICI}} \\
+s \ttP{\awa{\actw}{\actwc}} s' \conj \i{RI}(s) &\implies \i{CI}(s') & \tag*{\AgdaId{\id{RICI}}} \\
 s \ttP{\awa{\actw}{\actfc}} s' \conj \i{RI}(s) &\implies \i{CI}(s')\\
 s \ttP{\awa{\actw}{\actcp}} s' \conj \i{RI}(s) &\implies \i{CI}(s')\\
 s \ttP{\awa{\actw}{\actes}} s' \conj \i{RI}(s) &\implies \i{CI}(s')\\
-s \ttP{\awa{\actw}{\actr }} s' \conj \i{CI}(s) &\implies \i{RI}(s') & \AgdaId{\id{CIRI}} \\
-s \ttP{\awa{\actw}{\actrc}} s' \conj \i{CI}(s) &\implies \i{CI}(s') & \AgdaId{\id{CICI}}
+s \ttP{\awa{\actw}{\actr }} s' \conj \i{CI}(s) &\implies \i{RI}(s') & \tag*{\AgdaId{\id{CIRI}}} \\
+s \ttP{\awa{\actw}{\actrc}} s' \conj \i{CI}(s) &\implies \i{CI}(s') & \tag*{\AgdaId{\id{CICI}}}
 \end{align*}
 \end{assumption}
 
